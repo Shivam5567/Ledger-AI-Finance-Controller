@@ -25,8 +25,14 @@ router.post('/run', async (req, res) => {
     sendEvent({ stage: 'reconciling', progress: 0.5, message: 'Reconciling invoices...' });
     transactions = reconcileTransactions(getAllTransactions());
 
+    // 1.5s pacing delay to stay under Google's 5 RPM limit
+    await new Promise(r => setTimeout(r, 1500));
+
     sendEvent({ stage: 'anomaly', progress: 0.7, message: 'Detecting anomalies...' });
     transactions = await detectAnomalies(getAllTransactions());
+
+    // 1.5s pacing delay to stay under Google's 5 RPM limit
+    await new Promise(r => setTimeout(r, 1500));
 
     sendEvent({ stage: 'actions', progress: 0.9, message: 'Generating action drafts...' });
     transactions = await generateActions(getAllTransactions());
