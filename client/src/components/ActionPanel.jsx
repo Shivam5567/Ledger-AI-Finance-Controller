@@ -6,7 +6,7 @@ const actionLabels = {
   anomaly_explanation: "🔍 Anomaly Review",
 };
 
-export default function ActionPanel({ transaction, onApprove, onDismiss }) {
+export default function ActionPanel({ transaction, onApprove, onDismiss, onReset }) {
   const isResolved = transaction.action_status === 'approved';
   const isDismissed = transaction.action_status === 'dismissed';
   const isActionable = !isResolved && !isDismissed;
@@ -39,21 +39,29 @@ export default function ActionPanel({ transaction, onApprove, onDismiss }) {
           <>
             <button 
               onClick={(e) => { e.stopPropagation(); onApprove(); }}
-              className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 py-2 rounded-lg font-medium transition-colors"
+              className="w-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/50 py-2.5 rounded-lg font-medium transition-all hover:scale-105"
             >
               ✅ Approve
             </button>
             <button 
               onClick={(e) => { e.stopPropagation(); onDismiss(); }}
-              className="w-full bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 border border-slate-500/50 py-2 rounded-lg font-medium transition-colors"
+              className="w-full bg-slate-500/20 hover:bg-slate-500/30 text-slate-400 border border-slate-500/50 py-2.5 rounded-lg font-medium transition-all hover:scale-105"
             >
               ❌ Dismiss
             </button>
           </>
         ) : (
-          <div className="text-center p-3 rounded-lg bg-white/5 border border-white/10">
-            {isResolved && <span className="text-emerald-400 font-medium flex flex-col items-center gap-1"><span className="text-xl">✅</span> Resolved</span>}
-            {isDismissed && <span className="text-slate-400 font-medium flex flex-col items-center gap-1"><span className="text-xl">🚫</span> Dismissed</span>}
+          <div className="flex flex-col items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
+            {isResolved && <span className="text-emerald-400 font-medium flex items-center gap-1.5"><span className="text-lg">✅</span> Resolved</span>}
+            {isDismissed && <span className="text-slate-400 font-medium flex items-center gap-1.5"><span className="text-lg">🚫</span> Dismissed</span>}
+            {onReset && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onReset(); }}
+                className="mt-1 text-xs text-blue-400 hover:text-blue-300 underline font-medium"
+              >
+                ↩️ Undo
+              </button>
+            )}
           </div>
         )}
       </div>

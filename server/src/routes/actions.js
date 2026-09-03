@@ -37,6 +37,19 @@ router.post('/:id/dismiss', (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+router.post('/:id/reset', (req, res) => {
+  try {
+    const { id } = req.params;
+    const tx = getTransactionById(id);
+    if (!tx) {
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+    
+    updateTransaction(id, { action_status: 'pending' });
+    res.json(getTransactionById(id));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 export default router;

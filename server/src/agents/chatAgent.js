@@ -40,38 +40,77 @@ function getFallbackChatAnswer(message) {
   const allTx = getAllTransactions();
   const summary = getSummary();
 
-  if (q.includes('cloud') || q.includes('aws') || q.includes('infrastructure')) {
-    const cloudTx = allTx.filter(t => (t.category === 'cloud/infra' || t.description.toLowerCase().includes('aws')) && t.type === 'expense');
-    const total = cloudTx.reduce((sum, t) => sum + t.amount, 0);
-    return `We spent a total of **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on cloud infrastructure across ${cloudTx.length} transactions. This includes a notable spike charge of $7,800.00 for emergency scaling on Jan 25.`;
+  // Helper for category / keyword filtering
+  const getCategorySpend = (catName, keyword) => {
+    return allTx.filter(t => 
+      t.type === 'expense' && 
+      ((t.category && t.category.toLowerCase().includes(catName)) || 
+       (keyword && t.description.toLowerCase().includes(keyword)))
+    );
+  };
+
+  // 1. Payroll query
+  if (q.includes('payroll') || q.includes('salary') || q.includes('salaries') || q.includes('wages')) {
+    const txs = getCategorySpend('payroll', 'payroll');
+    const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    return `We spent a total of **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on payroll across ${txs.length} payment cycles (including engineering and marketing teams).`;
   }
 
-  if (q.includes('duplicate') || q.includes('double')) {
+  // 2. Cloud / Infra query
+  if (q.includes('cloud') || q.includes('aws') || q.includes('infra') || q.includes('server')) {
+    const txs = getCategorySpend('cloud/infra', 'aws');
+    const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    return `We spent a total of **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on cloud infrastructure across ${txs.length} transactions. This includes a notable emergency scale charge of $7,800.00 on Jan 25.`;
+  }
+
+  // 3. Marketing / Ads query
+  if (q.includes('marketing') || q.includes('ads') || q.includes('advertising') || q.includes('facebook') || q.includes('google ads')) {
+    const txs = getCategorySpend('marketing', 'ads');
+    const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    return `We spent **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on marketing and advertising across ${txs.length} ad campaigns.`;
+  }
+
+  // 4. Software query
+  if (q.includes('software') || q.includes('saas') || q.includes('tool') || q.includes('subscription')) {
+    const txs = getCategorySpend('software', '');
+    const total = txs.reduce((sum, t) => sum + t.amount, 0);
+    return `We spent **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on software subscriptions across ${txs.length} tools.`;
+  }
+
+  // 5. Duplicates query
+  if (q.includes('duplicate') || q.includes('double') || q.includes('repeat')) {
     const dupes = allTx.filter(t => t.flags && (t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice')));
     if (dupes.length > 0) {
-      const details = dupes.map(d => `- **${d.description}** ($${d.amount.toFixed(2)}) on ${d.date}`).join('\n');
-      return `Yes, there are duplicate payments detected:\n${details}\n\nOur Action Agent has generated refund request drafts for these items.`;
+      const listStr = dupes.map(d => `- **${d.description}** ($${d.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) on ${d.date}`).join('\n');
+      return `Yes, there are **${dupes.length} duplicate entries** detected in the ledger:\n${listStr}\n\nOur Action Agent has drafted refund request notes for these items.`;
     }
     return `No duplicate payments were detected in the current ledger.`;
   }
 
-  if (q.includes('biggest') || q.includes('largest') || q.includes('top expense')) {
-    if (summary.byCategory && summary.byCategory.length > 0) {
-      const top = summary.byCategory[0];
-      return `Our biggest expense category is **${top.category}** with a total spend of **$${top.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}**.`;
+  // 6. Unmatched / Invoice query
+  if (q.includes('unmatched') || q.includes('invoice') || q.includes('missing invoice')) {
+    const unmatched = allTx.filter(t => t.flags && t.flags.includes('unmatched_invoice'));
+    if (unmatched.length > 0) {
+      const listStr = unmatched.map(u => `- **${u.description}** ($${u.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) on ${u.date}`).join('\n');
+      return `Found **${unmatched.length} unmatched income payment(s)** missing an invoice reference:\n${listStr}\n\nOur Action Agent auto-drafted payment reminder emails for these.`;
     }
-    return `Payroll is our largest overall spending area ($68,000.00 total across engineering and marketing teams).`;
+    return `All income payments have valid invoice references.`;
   }
 
-  if (q.includes('summary') || q.includes('health') || q.includes('overall') || q.includes('total')) {
-    return `**Financial Overview:**
+  // 7. Biggest / Largest expense category query
+  if (q.includes('biggest') || q.includes('largest') || q.includes('top expense') || q.includes('most expensive')) {
+    if (summary.byCategory && summary.byCategory.length > 0) {
+      const top = summary.byCategory[0];
+      return `Our biggest expense category is **${top.category}** with a total spend of **$${top.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}**, followed by **${summary.byCategory[1]?.category || 'other'}** ($${summary.byCategory[1]?.total.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0'}).`;
+    }
+  }
+
+  // 8. Overall financial summary / health query
+  return `**Ledger AI Financial Health Summary:**
 - **Total Income:** $${summary.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}
 - **Total Expenses:** $${summary.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}
 - **Net Position:** $${summary.net.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-- **Flagged Transactions:** ${summary.flaggedCount} issues requiring review.`;
-  }
-
-  return `Based on our current transactions ledger: Total Income is $${summary.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}, Total Expenses are $${summary.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}, with ${summary.flaggedCount} flagged items requiring action.`;
+- **Flagged Issues:** ${summary.flaggedCount} transaction(s) requiring review (duplicates, anomalies, or unmatched invoices).`;
 }
 
 export async function handleChatMessage(message, res) {

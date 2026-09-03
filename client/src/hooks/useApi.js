@@ -203,6 +203,7 @@ export function useAction() {
 
   const approve = (id) => handleAction(id, 'approve');
   const dismiss = (id) => handleAction(id, 'dismiss');
+  const reset = (id) => handleAction(id, 'reset');
 
-  return { approve, dismiss };
+  return { approve, dismiss, reset };
 }

@@ -13,7 +13,7 @@ const catColors = {
   other: 'bg-slate-500/20 text-slate-400 border-slate-500/30'
 };
 
-export default function TransactionTable({ transactions, onApprove, onDismiss }) {
+export default function TransactionTable({ transactions, onApprove, onDismiss, onReset }) {
   const [expandedId, setExpandedId] = useState(null);
 
   const toggleExpand = (id, hasFlags) => {
@@ -25,8 +25,9 @@ export default function TransactionTable({ transactions, onApprove, onDismiss })
 
   return (
     <div className="glass-card overflow-hidden">
-      <div className="p-5 border-b border-white/5">
+      <div className="p-5 border-b border-white/5 flex justify-between items-center">
         <h3 className="text-lg font-semibold text-slate-200">Transactions</h3>
+        <span className="text-xs text-slate-400 font-normal">Click any flagged row to view AI action drafts</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
@@ -92,6 +93,7 @@ export default function TransactionTable({ transactions, onApprove, onDismiss })
                             transaction={tx} 
                             onApprove={() => onApprove(tx.id)}
                             onDismiss={() => onDismiss(tx.id)}
+                            onReset={() => onReset(tx.id)}
                           />
                         </div>
                       </td>
