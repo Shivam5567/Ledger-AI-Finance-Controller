@@ -28,15 +28,20 @@ export async function callGemini(prompt, options = {}) {
       let text = result.response.text();
       
       if (options.json) {
-        // Simple JSON extraction
-        const match = text.match(/```json\n([\s\S]*?)\n```/);
-        if (match) {
-          text = match[1];
+        // Strip markdown code fences if present (e.g. ```json ... ``` or ``` ...)
+        let cleaned = text.trim();
+        const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+        if (codeBlockMatch) {
+          cleaned = codeBlockMatch[1].trim();
         } else {
-           const match2 = text.match(/```\n([\s\S]*?)\n```/);
-           if (match2) text = match2[1];
+          // Find first [ or { and last ] or }
+          const firstBracket = cleaned.search(/[\[\{]/);
+          const lastBracket = Math.max(cleaned.lastIndexOf(']'), cleaned.lastIndexOf('}'));
+          if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+            cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+          }
         }
-        return JSON.parse(text);
+        return JSON.parse(cleaned);
       }
       
       return text;

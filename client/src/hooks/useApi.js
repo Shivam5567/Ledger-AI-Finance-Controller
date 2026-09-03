@@ -125,17 +125,23 @@ export function useChat() {
         body: JSON.stringify({ message: text }),
       });
       
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
       
       let buffer = '';
+      let receivedAnyToken = false;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n\n');
-        buffer = lines.pop();
+        buffer = lines.pop() || '';
         
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -143,6 +149,7 @@ export function useChat() {
               const data = JSON.parse(line.substring(6));
               
               if (data.type === 'token') {
+                receivedAnyToken = true;
                 setMessages((prev) => 
                   prev.map(m => m.id === aiMsgId ? { ...m, content: m.content + data.text } : m)
                 );
@@ -150,8 +157,10 @@ export function useChat() {
                 setToolState(`🔍 Querying transactions...`);
               } else if (data.type === 'tool_call_result') {
                 setToolState(null);
-              } else if (data.type === 'done') {
-                // Done
+              } else if (data.type === 'error') {
+                setMessages((prev) => 
+                  prev.map(m => m.id === aiMsgId ? { ...m, content: m.content || `⚠️ Error: ${data.message || 'Unable to complete request'}` } : m)
+                );
               }
             } catch (e) {
               console.error('Parse error in chat:', e);
@@ -159,8 +168,19 @@ export function useChat() {
           }
         }
       }
+
+      // If stream ended without any tokens
+      if (!receivedAnyToken) {
+        setMessages((prev) => 
+          prev.map(m => m.id === aiMsgId && !m.content ? { ...m, content: 'Sorry, I could not generate a response. Please try again.' } : m)
+        );
+      }
+
     } catch (err) {
       console.error('Chat error:', err);
+      setMessages((prev) => 
+        prev.map(m => m.id === aiMsgId && !m.content ? { ...m, content: `⚠️ Something went wrong connecting to the assistant. (${err.message})` } : m)
+      );
     } finally {
       setIsTyping(false);
       setToolState(null);
