@@ -24,12 +24,16 @@ function getGenAI() {
   return genAI;
 }
 
-// Primary model to use. Falls back through the chain on 404.
+// Model fallback chain — tried in order on 404 (model not found for key).
+// gemini-3.6-flash is first because it is the model this project's key has access to.
+// Standard Google AI Studio models follow for when users switch to an AIzaSy... key.
 const MODEL_CHAIN = [
-  process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+  process.env.GEMINI_MODEL || 'gemini-3.6-flash',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
   'gemini-1.5-flash',
   'gemini-1.5-flash-8b',
-  'gemini-2.0-flash-exp',
 ];
 
 export function getModel(modelName) {
