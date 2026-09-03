@@ -13,7 +13,8 @@ function getGenAI() {
 }
 
 export function getModel() {
-  return getGenAI().getGenerativeModel({ model: 'gemini-2.0-flash' });
+  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  return getGenAI().getGenerativeModel({ model: modelName });
 }
 
 export async function callGemini(prompt, options = {}) {
