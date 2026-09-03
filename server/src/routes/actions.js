@@ -37,6 +37,8 @@ router.post('/:id/dismiss', (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
 router.post('/:id/reset', (req, res) => {
   try {
     const { id } = req.params;
