@@ -12,6 +12,17 @@ function getGenAI() {
   return genAI;
 }
 
+export function shouldUseGemini() {
+  if (process.env.MOCK_AI === 'true') {
+    return false;
+  }
+  const key = process.env.GEMINI_API_KEY;
+  if (!key || key === 'your_gemini_api_key_here' || key.trim() === '') {
+    return false;
+  }
+  return true;
+}
+
 export function getModel() {
   const modelName = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
   return getGenAI().getGenerativeModel({ model: modelName });

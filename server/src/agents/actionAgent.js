@@ -1,5 +1,5 @@
 import { updateTransaction } from '../db.js';
-import { callGemini } from '../utils/gemini.js';
+import { callGemini, shouldUseGemini } from '../utils/gemini.js';
 
 export async function generateActions(transactions) {
   console.log(`[ActionAgent] Generating action drafts for flagged transactions...`);
@@ -39,10 +39,10 @@ Contact vendor/client regarding duplicate transaction. Request a refund or credi
   }
 
   // Batch Gemini call for all action drafts
-  const hasApiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
-  if (hasApiKey) {
+  if (shouldUseGemini()) {
     const draftsToGenerate = flagged.filter(t => t.action_type === 'reminder_email' || t.action_type === 'refund_request');
     if (draftsToGenerate.length > 0) {
+      console.log(`[ActionAgent] Running batched Gemini action draft call for ${draftsToGenerate.length} items (1 API call)...`);
       const promptList = draftsToGenerate.map(t => 
         `ID: ${t.id} | Type: ${t.action_type} | Desc: ${t.description} | Amount: $${t.amount} | Date: ${t.date}`
       ).join('\n');

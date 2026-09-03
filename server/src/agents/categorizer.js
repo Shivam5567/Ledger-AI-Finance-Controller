@@ -1,4 +1,4 @@
-import { callGemini } from '../utils/gemini.js';
+import { callGemini, shouldUseGemini } from '../utils/gemini.js';
 import { updateTransaction } from '../db.js';
 
 function fallbackCategorize(description, type) {
@@ -16,11 +16,10 @@ function fallbackCategorize(description, type) {
 export async function categorizeTransactions(transactions) {
   if (!transactions || transactions.length === 0) return [];
 
-  console.log(`[Categorizer] Categorizing ${transactions.length} transactions...`);
-
   let categories = null;
 
-  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here') {
+  if (shouldUseGemini()) {
+    console.log(`[Categorizer] Running batched Gemini categorization on ${transactions.length} items (1 API call)...`);
     const txList = transactions.map(t => 
       `ID: ${t.id} | Desc: ${t.description} | Amount: ${t.amount} | Type: ${t.type}`
     ).join('\n');
@@ -40,10 +39,10 @@ ${txList}
       categories = await callGemini(prompt, { json: true });
       console.log(`[Categorizer] Gemini returned ${categories?.length} categories.`);
     } catch (error) {
-      console.error("[Categorizer] Gemini API error, using fallback rules:", error.message);
+      console.error("[Categorizer] Gemini API unavailable/rate limited, using rule-based categorizer:", error.message);
     }
   } else {
-    console.log("[Categorizer] GEMINI_API_KEY not set or default placeholder, using rule-based categorization.");
+    console.log(`[Categorizer] MOCK_AI active. Running local categorization on ${transactions.length} items (0 API calls)...`);
   }
 
   // Update DB & transactions

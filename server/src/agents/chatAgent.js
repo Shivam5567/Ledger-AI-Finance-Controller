@@ -1,4 +1,4 @@
-import { getModel } from '../utils/gemini.js';
+import { getModel, shouldUseGemini } from '../utils/gemini.js';
 import { getTransactionsByFilter, getSummary, getAllTransactions } from '../db.js';
 
 const tools = [
@@ -120,10 +120,8 @@ export async function handleChatMessage(message, res) {
     res.setHeader('Connection', 'keep-alive');
   }
 
-  const hasApiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
-
-  if (!hasApiKey) {
-    console.log("[ChatAgent] GEMINI_API_KEY missing, using local query assistant fallback.");
+  if (!shouldUseGemini()) {
+    console.log("[ChatAgent] MOCK_AI active or API key unavailable, using local intelligent query assistant (0 API calls)...");
     const fallbackAnswer = getFallbackChatAnswer(message);
     const words = fallbackAnswer.split(' ');
     for (const word of words) {
