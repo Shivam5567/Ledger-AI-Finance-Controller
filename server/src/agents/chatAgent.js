@@ -134,114 +134,34 @@ export async function handleChatMessage(message, res) {
   }
 
   try {
+    const summary = getSummary();
+    const allTx = getAllTransactions();
+    
+    // Provide recent flagged items summary in context
+    const flaggedItems = allTx.filter(t => t.flags && t.flags.length > 0).map(t => 
+      `${t.date}: ${t.description} ($${t.amount.toFixed(2)}) - Flags: ${JSON.stringify(t.flags)}`
+    ).slice(0, 10).join('; ');
+
+    const contextPrompt = `You are a financial analyst assistant for Ledger AI.
+Current Financial Context:
+- Total Income: $${summary.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+- Total Expenses: $${summary.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+- Net Position: $${summary.net.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+- Flagged Items Count: ${summary.flaggedCount}
+- Top Expense Breakdown: ${JSON.stringify(summary.byCategory || [])}
+- Key Flagged Items: ${flaggedItems || 'None'}
+
+User Question: ${message}
+
+Answer the user's question accurately, concisely, and specifically using the numbers above. Format with markdown if helpful.`;
+
     const model = getModel();
-    const chat = model.startChat({
-      history: [
-        {
-          role: "user",
-          parts: [{ text: "System Prompt: You are a financial analyst assistant for Ledger AI. You help users understand their transaction data. Use the provided tools to query the database and answer questions accurately. Always provide specific numbers and be concise." }]
-        },
-        {
-          role: "model",
-          parts: [{ text: "Understood. I am ready to help as a financial analyst assistant." }]
-        }
-      ],
-      tools: [{ functionDeclarations: tools }]
-    });
+    const result = await model.generateContentStream(contextPrompt);
 
-    let result = await chat.sendMessageStream(message);
-
-    let keepLooping = true;
-    let loopCount = 0;
-    while (keepLooping && loopCount < 5) {
-      loopCount++;
-      let functionCall = null;
-
-      for await (const chunk of result.stream) {
-        const calls = chunk.functionCalls ? chunk.functionCalls() : null;
-        if (calls && calls.length > 0) {
-          functionCall = calls[0];
-        } else {
-          try {
-            const text = chunk.text();
-            if (text) {
-              res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
-            }
-          } catch (e) {
-            // Ignored if chunk doesn't contain text
-          }
-        }
-      }
-
-      if (functionCall) {
-        res.write(`data: ${JSON.stringify({ type: 'tool_call_start', name: functionCall.name })}\n\n`);
-        let toolResponse = {};
-        
-        if (functionCall.name === 'query_transactions') {
-          const args = functionCall.args || {};
-          const filter = args.filter || {};
-          let data = getTransactionsByFilter(filter);
-          
-          if (args.groupBy) {
-             const grouped = {};
-             for (const tx of data) {
-               const key = tx[args.groupBy] || 'uncategorized';
-               if (!grouped[key]) grouped[key] = [];
-               grouped[key].push(tx);
-             }
-             if (args.aggregate === 'sum') {
-               const resObj = {};
-               for (const [key, txs] of Object.entries(grouped)) {
-                 resObj[key] = txs.reduce((s, t) => s + t.amount, 0);
-               }
-               toolResponse = { data: resObj };
-             } else if (args.aggregate === 'count') {
-               const resObj = {};
-               for (const [key, txs] of Object.entries(grouped)) {
-                 resObj[key] = txs.length;
-               }
-               toolResponse = { data: resObj };
-             } else if (args.aggregate === 'avg') {
-               const resObj = {};
-               for (const [key, txs] of Object.entries(grouped)) {
-                 resObj[key] = txs.reduce((s, t) => s + t.amount, 0) / txs.length;
-               }
-               toolResponse = { data: resObj };
-             } else {
-               toolResponse = { data: grouped };
-             }
-          } else if (args.aggregate === 'sum') {
-             toolResponse = { total: data.reduce((s, t) => s + t.amount, 0), count: data.length };
-          } else if (args.aggregate === 'count') {
-             toolResponse = { count: data.length };
-          } else if (args.aggregate === 'avg') {
-             toolResponse = { average: data.length ? data.reduce((s, t) => s + t.amount, 0) / data.length : 0 };
-          } else {
-             toolResponse = { data, count: data.length };
-          }
-        } else if (functionCall.name === 'get_summary') {
-          toolResponse = getSummary();
-        } else if (functionCall.name === 'get_flagged_transactions') {
-          toolResponse = { data: getTransactionsByFilter({ hasFlag: true }) };
-        }
-
-        res.write(`data: ${JSON.stringify({ type: 'tool_call_result', name: functionCall.name })}\n\n`);
-
-        result = await chat.sendMessageStream([
-          {
-            role: 'user',
-            parts: [
-              {
-                functionResponse: {
-                  name: functionCall.name,
-                  response: toolResponse
-                }
-              }
-            ]
-          }
-        ]);
-      } else {
-        keepLooping = false;
+    for await (const chunk of result.stream) {
+      const text = chunk.text();
+      if (text) {
+        res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
       }
     }
 
