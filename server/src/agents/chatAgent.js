@@ -114,16 +114,17 @@ function getFallbackChatAnswer(message) {
 }
 
 export async function handleChatMessage(message, res) {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
+  if (!res.headersSent) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+  }
 
   const hasApiKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'your_gemini_api_key_here';
 
   if (!hasApiKey) {
     console.log("[ChatAgent] GEMINI_API_KEY missing, using local query assistant fallback.");
     const fallbackAnswer = getFallbackChatAnswer(message);
-    // Stream fallback tokens
     const words = fallbackAnswer.split(' ');
     for (const word of words) {
       res.write(`data: ${JSON.stringify({ type: 'token', text: word + ' ' })}\n\n`);
