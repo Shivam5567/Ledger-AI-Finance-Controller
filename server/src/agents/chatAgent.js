@@ -227,12 +227,19 @@ export async function handleChatMessage(message, res) {
 
         res.write(`data: ${JSON.stringify({ type: 'tool_call_result', name: functionCall.name })}\n\n`);
 
-        result = await chat.sendMessageStream([{
-          functionResponse: {
-            name: functionCall.name,
-            response: toolResponse
+        result = await chat.sendMessageStream([
+          {
+            role: 'user',
+            parts: [
+              {
+                functionResponse: {
+                  name: functionCall.name,
+                  response: toolResponse
+                }
+              }
+            ]
           }
-        }]);
+        ]);
       } else {
         keepLooping = false;
       }
