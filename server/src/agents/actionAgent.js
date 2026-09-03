@@ -48,8 +48,6 @@ Ledger AI — Automated Finance Controller`;
 // Main export
 // ---------------------------------------------------------------------------
 export async function generateActions(transactions) {
-  console.log('[ActionAgent] Generating action drafts for flagged transactions…');
-
   const flagged = transactions.filter(t => t.flags && t.flags.length > 0);
   if (flagged.length === 0) return transactions;
 
@@ -96,20 +94,30 @@ Ledger AI — Automated Anomaly Detection`;
   );
 
   if (needsDraft.length > 0 && hasValidApiKey()) {
-    const promptList = needsDraft
-      .map(t =>
-        `ID: ${t.id} | Type: ${t.action_type} | Desc: ${t.description} | ` +
-        `Amount: $${t.amount} | Date: ${t.date}`
-      )
-      .join('\n');
+    console.log(`[ActionAgent] Running batched Gemini action drafts for ${needsDraft.length} flagged items (1 API call)...`);
 
-    const prompt =
-      `You are a finance assistant drafting professional communications.\n` +
-      `For each transaction below, write a short professional email or internal note:\n` +
-      `  - reminder_email → polite email to client requesting their invoice reference\n` +
-      `  - refund_request → internal note to finance team requesting a refund/credit memo\n\n` +
-      `Return ONLY a valid JSON array: [{"id": number, "draft": string}]\n\n` +
-      `Transactions:\n${promptList}`;
+    const promptList = JSON.stringify(needsDraft.map(t => ({
+      id: t.id,
+      description: t.description,
+      amount: t.amount,
+      flag_type: t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice') ? 'duplicate' : 'unmatched_invoice',
+      date: t.date
+    })), null, 2);
+
+    const prompt = `Write an action draft for each flagged transaction.
+Use the flag_type to determine the draft format:
+- duplicate → refund request note (internal)
+- unmatched_invoice → payment reminder email (to client)
+- anomaly → internal spend alert (to finance team)
+
+Include the actual description, amount, and date in every draft.
+Make it sound like a real finance team wrote it, not a template.
+
+Flagged transactions:
+${promptList}
+
+Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
+[{"id": 3, "draft": "Subject: Duplicate Payment — Facebook Ads...\\n\\nHi Team,\\n..."}]`;
 
     try {
       const results = await callGemini(prompt, { json: true });

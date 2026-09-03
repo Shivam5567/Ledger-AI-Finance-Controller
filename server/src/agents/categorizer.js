@@ -27,31 +27,33 @@ function fallbackCategorize(description, type) {
 export async function categorizeTransactions(transactions) {
   if (!transactions || transactions.length === 0) return [];
 
-  console.log(`[Categorizer] Categorizing ${transactions.length} transactions…`);
-
-  // ── Skip optimisation: if every row already has a category, don't call AI ─
-  const needsCategorization = transactions.filter(t => !t.category);
+  // ── Protection B: Skip already-processed transactions ────────────────────
+  const needsCategorization = transactions.filter(t => !t.category || t.category === null);
   if (needsCategorization.length === 0) {
-    console.log('[Categorizer] All transactions already have categories. Skipping AI call.');
+    console.log('[Categorizer] All transactions already categorized — skipping API call');
     return transactions;
   }
 
   let categories = null;
 
   if (hasValidApiKey()) {
-    const txList = needsCategorization
-      .map(t => `ID: ${t.id} | Desc: ${t.description} | Amount: ${t.amount} | Type: ${t.type}`)
-      .join('\n');
+    console.log(`[Categorizer] Running batched Gemini categorization on ${needsCategorization.length} items (1 API call)...`);
 
-    const prompt = `You are a financial categorizer.
-Categorize the following transactions into EXACTLY ONE of these categories:
-rent, payroll, cloud/infra, software, marketing, client_income, refund, other
+    const txList = JSON.stringify(needsCategorization.map(t => ({
+      id: t.id,
+      description: t.description,
+      amount: t.amount,
+      type: t.type
+    })), null, 2);
 
-Respond ONLY with a valid JSON array of objects, each with "id" (number) and "category" (string).
-Do not include any explanation or markdown fences.
+    const prompt = `Categorize these ${needsCategorization.length} transactions into exactly one of:
+rent, payroll, cloud/infra, software, marketing, client_income, refund, other.
 
 Transactions:
-${txList}`;
+${txList}
+
+Return ONLY a raw JSON array of objects. No explanation, no markdown, no code fences:
+[{"id": 1, "category": "cloud/infra"}, {"id": 2, "category": "payroll"}]`;
 
     try {
       categories = await callGemini(prompt, { json: true });
@@ -76,7 +78,7 @@ ${txList}`;
     let cat = null;
 
     if (categories && Array.isArray(categories)) {
-      const item = categories.find(c => c.id === tx.id || c.id === String(tx.id));
+      const item = categories.find(c => c.id === tx.id || c.id === String(tx.id) || c.id === Number(tx.id));
       if (item && item.category) cat = item.category.toLowerCase().trim();
     }
 

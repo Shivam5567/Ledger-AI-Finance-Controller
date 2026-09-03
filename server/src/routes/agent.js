@@ -4,6 +4,7 @@ import { categorizeTransactions } from '../agents/categorizer.js';
 import { reconcileTransactions } from '../agents/reconciler.js';
 import { detectAnomalies } from '../agents/anomaly.js';
 import { generateActions } from '../agents/actionAgent.js';
+import { resetCallCount, getCallCount } from '../utils/gemini.js';
 
 const router = express.Router();
 
@@ -18,6 +19,8 @@ router.post('/run', async (req, res) => {
   };
 
   try {
+    resetCallCount();
+
     let transactions = getAllTransactions();
     const total = transactions.length;
 
@@ -47,6 +50,9 @@ router.post('/run', async (req, res) => {
     const anomalies = finalTxs.filter(t => t.flags && t.flags.includes('anomaly')).length;
     const unmatched = finalTxs.filter(t => t.flags && t.flags.includes('unmatched_invoice')).length;
 
+    const geminiCallCount = getCallCount();
+    console.log(`[Pipeline] Complete — ${geminiCallCount} Gemini API calls used`);
+
     // Save last reviewed timestamp
     setMetadata('last_reviewed_at', new Date().toISOString());
     setMetadata('last_tx_count', String(total));
@@ -63,6 +69,7 @@ router.post('/run', async (req, res) => {
       duplicates,
       anomalies,
       unmatched,
+      callsUsed: geminiCallCount,
       data: finalTxs
     });
 

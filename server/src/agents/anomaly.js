@@ -2,7 +2,7 @@ import { updateTransaction, isDismissed } from '../db.js';
 import { callGemini, hasValidApiKey } from '../utils/gemini.js';
 
 export async function detectAnomalies(transactions) {
-  console.log(`[Anomaly] Running anomaly detection on ${transactions.length} transactions…`);
+  console.log(`[Anomaly] Running anomaly detection on ${transactions.length} transactions...`);
 
   const categoryStats = {};
   for (const tx of transactions) {
@@ -68,8 +68,24 @@ export async function detectAnomalies(transactions) {
   if (anomalousTxs.length > 0) {
     const needsExplanation = anomalousTxs.filter(t => !t.anomaly_explanation);
     if (needsExplanation.length > 0 && hasValidApiKey()) {
-      const itemsList = needsExplanation.map(t => `ID: ${t.id} | Desc: ${t.description} | Amount: $${t.amount} | Category: ${t.category} | Baseline Avg: $${t.baselineAvg.toFixed(2)} | Multiplier: ${t.multiplier}x`).join('\n');
-      const prompt = `For each anomalous expense below, write a short 1-sentence plain-English explanation starting with "Flagged: ". Be specific about the amount and multiplier.\nReturn ONLY a valid JSON array: [{"id": number, "explanation": string}]\n\nTransactions:\n${itemsList}`;
+      console.log(`[Anomaly] Running batched Gemini explanation for ${needsExplanation.length} flagged items (1 API call)...`);
+
+      const itemsList = JSON.stringify(needsExplanation.map(t => ({
+        id: t.id,
+        description: t.description,
+        amount: t.amount,
+        flag_reason: `${t.multiplier}x category average of $${t.baselineAvg.toFixed(2)}`
+      })), null, 2);
+
+      const prompt = `Write a one-line plain-English explanation for each flagged transaction.
+Be specific — include the actual amount and the average it's being compared to.
+
+Flagged transactions:
+${itemsList}
+
+Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
+[{"id": 5, "explanation": "This AWS charge is 3.2x your typical monthly average of $2,400."}]`;
+
       try {
         const results = await callGemini(prompt, { json: true });
         if (Array.isArray(results)) {

@@ -1,7 +1,7 @@
 import { updateTransaction, isDismissed } from '../db.js';
 
 export function reconcileTransactions(transactions) {
-  console.log(`[Reconciler] Reconciling ${transactions.length} transactions...`);
+  console.log(`[Reconciler] Reconciling ${transactions.length} transactions... (0 API calls — pure logic)`);
   const invoiceCounts = {};
   
   for (const tx of transactions) {

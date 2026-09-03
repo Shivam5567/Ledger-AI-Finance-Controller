@@ -1,6 +1,15 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 let genAI = null;
+let geminiCallCount = 0;
+
+export function resetCallCount() {
+  geminiCallCount = 0;
+}
+
+export function getCallCount() {
+  return geminiCallCount;
+}
 
 // ---------------------------------------------------------------------------
 // Key validation
@@ -56,23 +65,21 @@ function getRetryDelayMs(error) {
 }
 
 // ---------------------------------------------------------------------------
-// Parse JSON out of a raw Gemini text response (strips markdown fences)
+// Safe JSON parsing wrapper for Gemini responses
+// Strips markdown fences (```json ... ```) before parsing
 // ---------------------------------------------------------------------------
-function parseJsonResponse(text) {
-  let cleaned = text.trim();
-
-  const fenceMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
-  if (fenceMatch) {
-    cleaned = fenceMatch[1].trim();
-  } else {
-    const first = cleaned.search(/[\[{]/);
-    const last  = Math.max(cleaned.lastIndexOf(']'), cleaned.lastIndexOf('}'));
-    if (first !== -1 && last > first) {
-      cleaned = cleaned.substring(first, last + 1);
-    }
+export function safeParseJSON(raw) {
+  if (typeof raw !== 'string') return raw;
+  const cleaned = raw
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+  try {
+    return JSON.parse(cleaned);
+  } catch (e) {
+    console.error('[Parser] Failed to parse Gemini response:', raw);
+    throw new Error('Invalid JSON from Gemini');
   }
-
-  return JSON.parse(cleaned);
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +90,7 @@ export async function callGemini(prompt, options = {}) {
     throw new Error('NO_KEY');
   }
 
+  geminiCallCount++;
   let lastError;
 
   for (const modelName of MODEL_CHAIN) {
@@ -92,7 +100,7 @@ export async function callGemini(prompt, options = {}) {
       try {
         const result = await model.generateContent(prompt);
         const text   = result.response.text();
-        return options.json ? parseJsonResponse(text) : text;
+        return options.json ? safeParseJSON(text) : text;
 
       } catch (err) {
         lastError = err;
