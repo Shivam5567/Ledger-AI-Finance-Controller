@@ -1,237 +1,273 @@
 import { getModel, hasValidApiKey } from '../utils/gemini.js';
 import { getTransactionsByFilter, getSummary, getAllTransactions } from '../db.js';
 
+// ---------------------------------------------------------------------------
+// Tool declarations for Gemini function-calling
+// NOTE: All `type` values must be lowercase per the SDK schema spec.
+// ---------------------------------------------------------------------------
 const tools = [
   {
     name: 'query_transactions',
-    description: "Query the transaction database with optional filters and aggregation. aggregation can be sum, count, avg, list. groupBy can be category, type, date.",
+    description:
+      'Query the live transaction database with optional filters and aggregation. ' +
+      'Filters: category (string), type (income|expense|refund), dateFrom/dateTo (YYYY-MM-DD), ' +
+      'hasFlag (boolean). Aggregate: sum | count | avg. GroupBy: category | type | date.',
     parameters: {
-      type: "OBJECT",
+      type: 'object',
       properties: {
         filter: {
-          type: "OBJECT",
+          type: 'object',
           properties: {
-            category: { type: "STRING" },
-            type: { type: "STRING" },
-            dateFrom: { type: "STRING" },
-            dateTo: { type: "STRING" },
-            hasFlag: { type: "BOOLEAN" }
-          }
+            category:  { type: 'string' },
+            type:      { type: 'string' },
+            dateFrom:  { type: 'string' },
+            dateTo:    { type: 'string' },
+            hasFlag:   { type: 'boolean' },
+          },
         },
-        aggregate: { type: "STRING" },
-        groupBy: { type: "STRING" }
-      }
-    }
+        aggregate: { type: 'string', description: 'sum | count | avg' },
+        groupBy:   { type: 'string', description: 'category | type | date' },
+      },
+    },
   },
   {
     name: 'get_summary',
-    description: "Get overall financial summary including totals and category breakdown.",
-    parameters: { type: "OBJECT", properties: {} }
+    description: 'Get the overall financial summary: totalIncome, totalExpenses, net position, flaggedCount, and spend breakdown by category.',
+    parameters: { type: 'object', properties: {} },
   },
   {
     name: 'get_flagged_transactions',
-    description: "Get all transactions that have been flagged for issues.",
-    parameters: { type: "OBJECT", properties: {} }
-  }
+    description: 'Get all transactions that have been flagged for anomalies, duplicates, or unmatched invoices.',
+    parameters: { type: 'object', properties: {} },
+  },
 ];
 
-function getFallbackChatAnswer(message) {
-  const q = message.toLowerCase();
-  const allTx = getAllTransactions();
+// ---------------------------------------------------------------------------
+// Local fallback Q&A (no API required)
+// ---------------------------------------------------------------------------
+function getFallbackAnswer(message) {
+  const q      = message.toLowerCase();
+  const allTx  = getAllTransactions();
   const summary = getSummary();
 
-  // Helper for category / keyword filtering
-  const getCategorySpend = (catName, keyword) => {
-    return allTx.filter(t => 
-      t.type === 'expense' && 
-      ((t.category && t.category.toLowerCase().includes(catName)) || 
-       (keyword && t.description.toLowerCase().includes(keyword)))
+  const expensesByCategory = (catName, keyword = '') =>
+    allTx.filter(
+      t => t.type === 'expense' &&
+        ((t.category && t.category.toLowerCase().includes(catName)) ||
+         (keyword && t.description.toLowerCase().includes(keyword)))
     );
-  };
 
-  // 1. Payroll query
-  if (q.includes('payroll') || q.includes('salary') || q.includes('salaries') || q.includes('wages')) {
-    const txs = getCategorySpend('payroll', 'payroll');
-    const total = txs.reduce((sum, t) => sum + t.amount, 0);
-    return `We spent a total of **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on payroll across ${txs.length} payment cycles (including engineering and marketing teams).`;
+  const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+  // Payroll
+  if (q.includes('payroll') || q.includes('salary') || q.includes('wages')) {
+    const txs   = expensesByCategory('payroll', 'payroll');
+    const total = txs.reduce((s, t) => s + t.amount, 0);
+    return `Payroll total: **$${fmt(total)}** across ${txs.length} payment cycles (engineering & marketing teams).`;
   }
 
-  // 2. Cloud / Infra query
+  // Cloud / Infra
   if (q.includes('cloud') || q.includes('aws') || q.includes('infra') || q.includes('server')) {
-    const txs = getCategorySpend('cloud/infra', 'aws');
-    const total = txs.reduce((sum, t) => sum + t.amount, 0);
-    return `We spent a total of **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on cloud infrastructure across ${txs.length} transactions. This includes a notable emergency scale charge of $7,800.00 on Jan 25.`;
+    const txs   = expensesByCategory('cloud/infra', 'aws');
+    const total = txs.reduce((s, t) => s + t.amount, 0);
+    return `Cloud / infrastructure spend: **$${fmt(total)}** across ${txs.length} transactions.` +
+           ` This includes a spike charge of $7,800 on Jan 25 (flagged as anomaly).`;
   }
 
-  // 3. Marketing / Ads query
-  if (q.includes('marketing') || q.includes('ads') || q.includes('advertising') || q.includes('facebook') || q.includes('google ads')) {
-    const txs = getCategorySpend('marketing', 'ads');
-    const total = txs.reduce((sum, t) => sum + t.amount, 0);
-    return `We spent **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on marketing and advertising across ${txs.length} ad campaigns.`;
+  // Marketing
+  if (q.includes('marketing') || q.includes('ads') || q.includes('advertising') || q.includes('facebook')) {
+    const txs   = expensesByCategory('marketing', 'ads');
+    const total = txs.reduce((s, t) => s + t.amount, 0);
+    return `Marketing / ads spend: **$${fmt(total)}** across ${txs.length} campaigns.`;
   }
 
-  // 4. Software query
-  if (q.includes('software') || q.includes('saas') || q.includes('tool') || q.includes('subscription')) {
-    const txs = getCategorySpend('software', '');
-    const total = txs.reduce((sum, t) => sum + t.amount, 0);
-    return `We spent **$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}** on software subscriptions across ${txs.length} tools.`;
+  // Software
+  if (q.includes('software') || q.includes('saas') || q.includes('subscri')) {
+    const txs   = expensesByCategory('software');
+    const total = txs.reduce((s, t) => s + t.amount, 0);
+    return `Software subscriptions: **$${fmt(total)}** across ${txs.length} tools.`;
   }
 
-  // 5. Duplicates query
+  // Rent
+  if (q.includes('rent') || q.includes('office')) {
+    const txs   = expensesByCategory('rent', 'rent');
+    const total = txs.reduce((s, t) => s + t.amount, 0);
+    return `Office / rent spend: **$${fmt(total)}** across ${txs.length} payments.`;
+  }
+
+  // Duplicates
   if (q.includes('duplicate') || q.includes('double') || q.includes('repeat')) {
     const dupes = allTx.filter(t => t.flags && (t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice')));
-    if (dupes.length > 0) {
-      const listStr = dupes.map(d => `- **${d.description}** ($${d.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) on ${d.date}`).join('\n');
-      return `Yes, there are **${dupes.length} duplicate entries** detected in the ledger:\n${listStr}\n\nOur Action Agent has drafted refund request notes for these items.`;
-    }
-    return `No duplicate payments were detected in the current ledger.`;
+    if (!dupes.length) return 'No duplicate payments were detected.';
+    const list = dupes.map(d => `- **${d.description}** ($${fmt(d.amount)}) on ${d.date}`).join('\n');
+    return `**${dupes.length} duplicate entries** detected:\n${list}\n\nRefund request notes have been drafted for these.`;
   }
 
-  // 6. Unmatched / Invoice query
-  if (q.includes('unmatched') || q.includes('invoice') || q.includes('missing invoice')) {
-    const unmatched = allTx.filter(t => t.flags && t.flags.includes('unmatched_invoice'));
-    if (unmatched.length > 0) {
-      const listStr = unmatched.map(u => `- **${u.description}** ($${u.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) on ${u.date}`).join('\n');
-      return `Found **${unmatched.length} unmatched income payment(s)** missing an invoice reference:\n${listStr}\n\nOur Action Agent auto-drafted payment reminder emails for these.`;
-    }
-    return `All income payments have valid invoice references.`;
+  // Unmatched invoices
+  if (q.includes('unmatched') || q.includes('invoice') || q.includes('missing')) {
+    const um = allTx.filter(t => t.flags && t.flags.includes('unmatched_invoice'));
+    if (!um.length) return 'All income payments have valid invoice references.';
+    const list = um.map(u => `- **${u.description}** ($${fmt(u.amount)}) on ${u.date}`).join('\n');
+    return `**${um.length} unmatched income payment(s)** missing an invoice ref:\n${list}\n\nPayment reminder emails have been drafted.`;
   }
 
-  // 7. Biggest / Largest expense category query
-  if (q.includes('biggest') || q.includes('largest') || q.includes('top expense') || q.includes('most expensive')) {
-    if (summary.byCategory && summary.byCategory.length > 0) {
+  // Biggest category
+  if (q.includes('biggest') || q.includes('largest') || q.includes('top') || q.includes('most')) {
+    if (summary.byCategory?.length) {
       const top = summary.byCategory[0];
-      return `Our biggest expense category is **${top.category}** with a total spend of **$${top.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}**, followed by **${summary.byCategory[1]?.category || 'other'}** ($${summary.byCategory[1]?.total.toLocaleString('en-US', { minimumFractionDigits: 2 }) || '0'}).`;
+      const second = summary.byCategory[1];
+      return `Biggest expense category: **${top.category}** ($${fmt(top.total)})` +
+             (second ? `, followed by **${second.category}** ($${fmt(second.total)}).` : '.');
     }
   }
 
-  // 8. Overall financial summary / health query
-  return `**Ledger AI Financial Health Summary:**
-- **Total Income:** $${summary.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-- **Total Expenses:** $${summary.totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-- **Net Position:** $${summary.net.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-- **Flagged Issues:** ${summary.flaggedCount} transaction(s) requiring review (duplicates, anomalies, or unmatched invoices).`;
+  // Flagged / anomalies
+  if (q.includes('flagged') || q.includes('anomal') || q.includes('issue')) {
+    const flagged = allTx.filter(t => t.flags && t.flags.length > 0);
+    if (!flagged.length) return 'No flagged transactions found.';
+    const list = flagged.slice(0, 5).map(t => `- **${t.description}** (${t.flags.join(', ')})`).join('\n');
+    return `**${flagged.length} flagged transactions** requiring attention:\n${list}`;
+  }
+
+  // Net / overall summary
+  return `**Ledger AI Financial Summary**
+- **Total Income:** $${fmt(summary.totalIncome)}
+- **Total Expenses:** $${fmt(summary.totalExpenses)}
+- **Net Position:** $${fmt(summary.net)}
+- **Flagged Items:** ${summary.flaggedCount} transaction(s) need review (duplicates, anomalies, missing invoices)`;
 }
 
+// ---------------------------------------------------------------------------
+// Tool execution helper
+// ---------------------------------------------------------------------------
+function executeTool(name, args = {}) {
+  if (name === 'get_summary') {
+    return getSummary();
+  }
+
+  if (name === 'get_flagged_transactions') {
+    return { data: getTransactionsByFilter({ hasFlag: true }) };
+  }
+
+  if (name === 'query_transactions') {
+    const filter = args.filter || {};
+    let data = getTransactionsByFilter(filter);
+
+    if (args.groupBy) {
+      const grouped = {};
+      for (const tx of data) {
+        const key = tx[args.groupBy] || 'uncategorized';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(tx);
+      }
+      if (args.aggregate === 'sum') {
+        const out = {};
+        for (const [k, txs] of Object.entries(grouped)) out[k] = txs.reduce((s, t) => s + t.amount, 0);
+        return { data: out };
+      }
+      if (args.aggregate === 'count') {
+        const out = {};
+        for (const [k, txs] of Object.entries(grouped)) out[k] = txs.length;
+        return { data: out };
+      }
+      if (args.aggregate === 'avg') {
+        const out = {};
+        for (const [k, txs] of Object.entries(grouped)) out[k] = txs.reduce((s, t) => s + t.amount, 0) / txs.length;
+        return { data: out };
+      }
+      return { data: grouped };
+    }
+
+    if (args.aggregate === 'sum')   return { total: data.reduce((s, t) => s + t.amount, 0), count: data.length };
+    if (args.aggregate === 'count') return { count: data.length };
+    if (args.aggregate === 'avg')   return { average: data.length ? data.reduce((s, t) => s + t.amount, 0) / data.length : 0 };
+    return { data, count: data.length };
+  }
+
+  return {};
+}
+
+// ---------------------------------------------------------------------------
+// Streamed word-by-word helper (for fallback responses)
+// ---------------------------------------------------------------------------
+async function streamText(text, res) {
+  const words = text.split(' ');
+  for (const word of words) {
+    res.write(`data: ${JSON.stringify({ type: 'token', text: word + ' ' })}\n\n`);
+    await new Promise(r => setTimeout(r, 18));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main export
+// ---------------------------------------------------------------------------
 export async function handleChatMessage(message, res) {
+  // Set SSE headers first — must happen before any async work so errors can stream
   if (!res.headersSent) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
   }
 
+  // ── No API key → instant local answer ────────────────────────────────────
   if (!hasValidApiKey()) {
-    console.log("[ChatAgent] GEMINI_API_KEY missing, using local query assistant fallback.");
-    const fallbackAnswer = getFallbackChatAnswer(message);
-    const words = fallbackAnswer.split(' ');
-    for (const word of words) {
-      res.write(`data: ${JSON.stringify({ type: 'token', text: word + ' ' })}\n\n`);
-      await new Promise(r => setTimeout(r, 20));
-    }
+    console.log('[ChatAgent] No API key. Streaming local assistant answer.');
+    await streamText(getFallbackAnswer(message), res);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
     return;
   }
 
+  // ── Gemini function-calling chat ──────────────────────────────────────────
   try {
     const model = getModel();
-    const chat = model.startChat({
+    const chat  = model.startChat({
       history: [
         {
-          role: "user",
-          parts: [{ text: "System Prompt: You are a financial analyst assistant for Ledger AI. You help users understand their transaction data. Use the provided tools to query the database and answer questions accurately. Always provide specific numbers and be concise." }]
+          role:  'user',
+          parts: [{ text:
+            'System: You are a financial analyst assistant for Ledger AI. ' +
+            'Always use the provided tools to look up live transaction data before answering. ' +
+            'Provide specific numbers, be concise, and use markdown bullet points when listing items.'
+          }],
         },
         {
-          role: "model",
-          parts: [{ text: "Understood. I am ready to help as a financial analyst assistant." }]
-        }
+          role:  'model',
+          parts: [{ text: 'Understood. I will query live data and answer concisely.' }],
+        },
       ],
-      tools: [{ functionDeclarations: tools }]
+      tools: [{ functionDeclarations: tools }],
     });
 
     let result = await chat.sendMessageStream(message);
 
     let keepLooping = true;
-    let loopCount = 0;
-    while (keepLooping && loopCount < 5) {
+    let loopCount   = 0;
+
+    while (keepLooping && loopCount < 6) {
       loopCount++;
       let functionCall = null;
 
       for await (const chunk of result.stream) {
+        // Check for function call first (chunk.text() throws if functionCalls present)
         const calls = chunk.functionCalls ? chunk.functionCalls() : null;
         if (calls && calls.length > 0) {
           functionCall = calls[0];
         } else {
           try {
             const text = chunk.text();
-            if (text) {
-              res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
-            }
-          } catch (e) {
-            // Ignored if chunk doesn't contain text
-          }
+            if (text) res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
+          } catch (_) { /* chunk has no text (e.g. purely a usage metadata chunk) */ }
         }
       }
 
       if (functionCall) {
         res.write(`data: ${JSON.stringify({ type: 'tool_call_start', name: functionCall.name })}\n\n`);
-        let toolResponse = {};
-        
-        if (functionCall.name === 'query_transactions') {
-          const args = functionCall.args || {};
-          const filter = args.filter || {};
-          let data = getTransactionsByFilter(filter);
-          
-          if (args.groupBy) {
-             const grouped = {};
-             for (const tx of data) {
-               const key = tx[args.groupBy] || 'uncategorized';
-               if (!grouped[key]) grouped[key] = [];
-               grouped[key].push(tx);
-             }
-             if (args.aggregate === 'sum') {
-               const resObj = {};
-               for (const [key, txs] of Object.entries(grouped)) {
-                 resObj[key] = txs.reduce((s, t) => s + t.amount, 0);
-               }
-               toolResponse = { data: resObj };
-             } else if (args.aggregate === 'count') {
-               const resObj = {};
-               for (const [key, txs] of Object.entries(grouped)) {
-                 resObj[key] = txs.length;
-               }
-               toolResponse = { data: resObj };
-             } else if (args.aggregate === 'avg') {
-               const resObj = {};
-               for (const [key, txs] of Object.entries(grouped)) {
-                 resObj[key] = txs.reduce((s, t) => s + t.amount, 0) / txs.length;
-               }
-               toolResponse = { data: resObj };
-             } else {
-               toolResponse = { data: grouped };
-             }
-          } else if (args.aggregate === 'sum') {
-             toolResponse = { total: data.reduce((s, t) => s + t.amount, 0), count: data.length };
-          } else if (args.aggregate === 'count') {
-             toolResponse = { count: data.length };
-          } else if (args.aggregate === 'avg') {
-             toolResponse = { average: data.length ? data.reduce((s, t) => s + t.amount, 0) / data.length : 0 };
-          } else {
-             toolResponse = { data, count: data.length };
-          }
-        } else if (functionCall.name === 'get_summary') {
-          toolResponse = getSummary();
-        } else if (functionCall.name === 'get_flagged_transactions') {
-          toolResponse = { data: getTransactionsByFilter({ hasFlag: true }) };
-        }
-
+        const toolResponse = executeTool(functionCall.name, functionCall.args || {});
         res.write(`data: ${JSON.stringify({ type: 'tool_call_result', name: functionCall.name })}\n\n`);
 
         result = await chat.sendMessageStream([{
-          functionResponse: {
-            name: functionCall.name,
-            response: toolResponse
-          }
+          functionResponse: { name: functionCall.name, response: toolResponse },
         }]);
       } else {
         keepLooping = false;
@@ -242,15 +278,16 @@ export async function handleChatMessage(message, res) {
     res.end();
 
   } catch (error) {
-    const isRateLimit = error.status === 429 || (error.message && error.message.includes('429'));
-    if (isRateLimit) {
-      console.log("[ChatAgent] Gemini rate limit reached (429), streaming local intelligent answer.");
+    const is429 = error.status === 429 || (error.message && error.message.includes('429')) || error.message === 'RATE_LIMIT';
+
+    if (is429) {
+      console.log('[ChatAgent] Quota exhausted. Streaming local assistant answer.');
     } else {
-      console.error("[ChatAgent] Stream error:", error.message || error);
+      console.error('[ChatAgent] Stream error:', error.message || error);
     }
-    // Fallback to local QA answer on error
-    const fallbackAnswer = getFallbackChatAnswer(message);
-    res.write(`data: ${JSON.stringify({ type: 'token', text: fallbackAnswer })}\n\n`);
+
+    // Stream a graceful local fallback answer
+    await streamText(getFallbackAnswer(message), res);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
   }
