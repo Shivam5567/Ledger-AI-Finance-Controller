@@ -1,54 +1,46 @@
 import { getModel, hasValidApiKey } from '../utils/gemini.js';
-import { getTransactionsByFilter, getSummary, getAllTransactions } from '../db.js';
+import { getSummary, getAllTransactions } from '../db.js';
 
 // ---------------------------------------------------------------------------
-// Tool declarations for Gemini function-calling
-// NOTE: All `type` values must be lowercase per the SDK schema spec.
+// Build a rich context snapshot from live DB data, injected into the prompt
 // ---------------------------------------------------------------------------
-const tools = [
-  {
-    name: 'query_transactions',
-    description:
-      'Query the live transaction database with optional filters and aggregation. ' +
-      'Filters: category (string), type (income|expense|refund), dateFrom/dateTo (YYYY-MM-DD), ' +
-      'hasFlag (boolean). Aggregate: sum | count | avg. GroupBy: category | type | date.',
-    parameters: {
-      type: 'object',
-      properties: {
-        filter: {
-          type: 'object',
-          properties: {
-            category:  { type: 'string' },
-            type:      { type: 'string' },
-            dateFrom:  { type: 'string' },
-            dateTo:    { type: 'string' },
-            hasFlag:   { type: 'boolean' },
-          },
-        },
-        aggregate: { type: 'string', description: 'sum | count | avg' },
-        groupBy:   { type: 'string', description: 'category | type | date' },
-      },
-    },
-  },
-  {
-    name: 'get_summary',
-    description: 'Get the overall financial summary: totalIncome, totalExpenses, net position, flaggedCount, and spend breakdown by category.',
-    parameters: { type: 'object', properties: {} },
-  },
-  {
-    name: 'get_flagged_transactions',
-    description: 'Get all transactions that have been flagged for anomalies, duplicates, or unmatched invoices.',
-    parameters: { type: 'object', properties: {} },
-  },
-];
+function buildDataContext() {
+  const allTx  = getAllTransactions();
+  const summary = getSummary();
+
+  const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+  const txLines = allTx.map(t =>
+    `  [${t.date}] ${t.type.toUpperCase()} | ${t.description} | ` +
+    `$${fmt(t.amount)} | cat:${t.category || 'uncategorized'} | ` +
+    `flags:[${(t.flags || []).join(',')}]`
+  ).join('\n');
+
+  const catLines = (summary.byCategory || [])
+    .map(c => `  ${c.category}: $${fmt(c.total)}`)
+    .join('\n');
+
+  return `LIVE LEDGER DATA (as of now):
+Total Income   : $${fmt(summary.totalIncome)}
+Total Expenses : $${fmt(summary.totalExpenses)}
+Net Position   : $${fmt(summary.net)}
+Flagged Items  : ${summary.flaggedCount}
+
+Spend by Category:
+${catLines || '  (none yet)'}
+
+All Transactions (${allTx.length}):
+${txLines || '  (no transactions ingested yet)'}`;
+}
 
 // ---------------------------------------------------------------------------
-// Local fallback Q&A (no API required)
+// Local rule-based fallback Q&A (no API required)
 // ---------------------------------------------------------------------------
 function getFallbackAnswer(message) {
   const q      = message.toLowerCase();
   const allTx  = getAllTransactions();
   const summary = getSummary();
+  const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2 });
 
   const expensesByCategory = (catName, keyword = '') =>
     allTx.filter(
@@ -57,45 +49,36 @@ function getFallbackAnswer(message) {
          (keyword && t.description.toLowerCase().includes(keyword)))
     );
 
-  const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2 });
-
-  // Payroll
   if (q.includes('payroll') || q.includes('salary') || q.includes('wages')) {
     const txs   = expensesByCategory('payroll', 'payroll');
     const total = txs.reduce((s, t) => s + t.amount, 0);
     return `Payroll total: **$${fmt(total)}** across ${txs.length} payment cycles (engineering & marketing teams).`;
   }
 
-  // Cloud / Infra
   if (q.includes('cloud') || q.includes('aws') || q.includes('infra') || q.includes('server')) {
     const txs   = expensesByCategory('cloud/infra', 'aws');
     const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Cloud / infrastructure spend: **$${fmt(total)}** across ${txs.length} transactions.` +
-           ` This includes a spike charge of $7,800 on Jan 25 (flagged as anomaly).`;
+    return `Cloud / infrastructure spend: **$${fmt(total)}** across ${txs.length} transactions. Includes a spike charge of $7,800 on Jan 25 (flagged as anomaly).`;
   }
 
-  // Marketing
   if (q.includes('marketing') || q.includes('ads') || q.includes('advertising') || q.includes('facebook')) {
     const txs   = expensesByCategory('marketing', 'ads');
     const total = txs.reduce((s, t) => s + t.amount, 0);
     return `Marketing / ads spend: **$${fmt(total)}** across ${txs.length} campaigns.`;
   }
 
-  // Software
   if (q.includes('software') || q.includes('saas') || q.includes('subscri')) {
     const txs   = expensesByCategory('software');
     const total = txs.reduce((s, t) => s + t.amount, 0);
     return `Software subscriptions: **$${fmt(total)}** across ${txs.length} tools.`;
   }
 
-  // Rent
   if (q.includes('rent') || q.includes('office')) {
     const txs   = expensesByCategory('rent', 'rent');
     const total = txs.reduce((s, t) => s + t.amount, 0);
     return `Office / rent spend: **$${fmt(total)}** across ${txs.length} payments.`;
   }
 
-  // Duplicates
   if (q.includes('duplicate') || q.includes('double') || q.includes('repeat')) {
     const dupes = allTx.filter(t => t.flags && (t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice')));
     if (!dupes.length) return 'No duplicate payments were detected.';
@@ -103,7 +86,6 @@ function getFallbackAnswer(message) {
     return `**${dupes.length} duplicate entries** detected:\n${list}\n\nRefund request notes have been drafted for these.`;
   }
 
-  // Unmatched invoices
   if (q.includes('unmatched') || q.includes('invoice') || q.includes('missing')) {
     const um = allTx.filter(t => t.flags && t.flags.includes('unmatched_invoice'));
     if (!um.length) return 'All income payments have valid invoice references.';
@@ -111,17 +93,15 @@ function getFallbackAnswer(message) {
     return `**${um.length} unmatched income payment(s)** missing an invoice ref:\n${list}\n\nPayment reminder emails have been drafted.`;
   }
 
-  // Biggest category
   if (q.includes('biggest') || q.includes('largest') || q.includes('top') || q.includes('most')) {
     if (summary.byCategory?.length) {
-      const top = summary.byCategory[0];
+      const top    = summary.byCategory[0];
       const second = summary.byCategory[1];
       return `Biggest expense category: **${top.category}** ($${fmt(top.total)})` +
              (second ? `, followed by **${second.category}** ($${fmt(second.total)}).` : '.');
     }
   }
 
-  // Flagged / anomalies
   if (q.includes('flagged') || q.includes('anomal') || q.includes('issue')) {
     const flagged = allTx.filter(t => t.flags && t.flags.length > 0);
     if (!flagged.length) return 'No flagged transactions found.';
@@ -129,72 +109,34 @@ function getFallbackAnswer(message) {
     return `**${flagged.length} flagged transactions** requiring attention:\n${list}`;
   }
 
-  // Net / overall summary
+  if (q.includes('income') || q.includes('revenue') || q.includes('earning')) {
+    const txs   = allTx.filter(t => t.type === 'income');
+    const total = txs.reduce((s, t) => s + t.amount, 0);
+    return `Total income: **$${fmt(total)}** across ${txs.length} payments received.`;
+  }
+
+  // General finance question — answer using the live data summary
+  if (allTx.length === 0) {
+    return 'No transaction data is loaded yet. Please click **Load Transactions** and then **Run AI Agent** first.';
+  }
+
   return `**Ledger AI Financial Summary**
 - **Total Income:** $${fmt(summary.totalIncome)}
 - **Total Expenses:** $${fmt(summary.totalExpenses)}
 - **Net Position:** $${fmt(summary.net)}
-- **Flagged Items:** ${summary.flaggedCount} transaction(s) need review (duplicates, anomalies, missing invoices)`;
+- **Flagged Items:** ${summary.flaggedCount} transaction(s) need review (duplicates, anomalies, missing invoices)
+
+For specific questions, try: "How much did we spend on payroll?", "Are there any duplicate payments?", or "What is our biggest expense?"`;
 }
 
 // ---------------------------------------------------------------------------
-// Tool execution helper
-// ---------------------------------------------------------------------------
-function executeTool(name, args = {}) {
-  if (name === 'get_summary') {
-    return getSummary();
-  }
-
-  if (name === 'get_flagged_transactions') {
-    return { data: getTransactionsByFilter({ hasFlag: true }) };
-  }
-
-  if (name === 'query_transactions') {
-    const filter = args.filter || {};
-    let data = getTransactionsByFilter(filter);
-
-    if (args.groupBy) {
-      const grouped = {};
-      for (const tx of data) {
-        const key = tx[args.groupBy] || 'uncategorized';
-        if (!grouped[key]) grouped[key] = [];
-        grouped[key].push(tx);
-      }
-      if (args.aggregate === 'sum') {
-        const out = {};
-        for (const [k, txs] of Object.entries(grouped)) out[k] = txs.reduce((s, t) => s + t.amount, 0);
-        return { data: out };
-      }
-      if (args.aggregate === 'count') {
-        const out = {};
-        for (const [k, txs] of Object.entries(grouped)) out[k] = txs.length;
-        return { data: out };
-      }
-      if (args.aggregate === 'avg') {
-        const out = {};
-        for (const [k, txs] of Object.entries(grouped)) out[k] = txs.reduce((s, t) => s + t.amount, 0) / txs.length;
-        return { data: out };
-      }
-      return { data: grouped };
-    }
-
-    if (args.aggregate === 'sum')   return { total: data.reduce((s, t) => s + t.amount, 0), count: data.length };
-    if (args.aggregate === 'count') return { count: data.length };
-    if (args.aggregate === 'avg')   return { average: data.length ? data.reduce((s, t) => s + t.amount, 0) / data.length : 0 };
-    return { data, count: data.length };
-  }
-
-  return {};
-}
-
-// ---------------------------------------------------------------------------
-// Streamed word-by-word helper (for fallback responses)
+// Streamed word-by-word helper
 // ---------------------------------------------------------------------------
 async function streamText(text, res) {
   const words = text.split(' ');
   for (const word of words) {
     res.write(`data: ${JSON.stringify({ type: 'token', text: word + ' ' })}\n\n`);
-    await new Promise(r => setTimeout(r, 18));
+    await new Promise(r => setTimeout(r, 15));
   }
 }
 
@@ -202,93 +144,70 @@ async function streamText(text, res) {
 // Main export
 // ---------------------------------------------------------------------------
 export async function handleChatMessage(message, res) {
-  // Set SSE headers first — must happen before any async work so errors can stream
+  // ── Flush SSE headers immediately ─────────────────────────────────────────
+  // res.headersSent only becomes true after the first res.write() / res.end(),
+  // NOT after res.setHeader(). Calling flushHeaders() physically sends the HTTP
+  // 200 + headers right now, ensuring HTTP 500 can never be returned after this.
   if (!res.headersSent) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
   }
+
+  // Safe fallback sender — won't throw even if db is empty
+  const sendFallback = async (msg) => {
+    try {
+      await streamText(getFallbackAnswer(msg), res);
+    } catch (_) {
+      res.write(`data: ${JSON.stringify({ type: 'token', text: 'Sorry, I encountered an error. Please try again.' })}\n\n`);
+    }
+    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+    res.end();
+  };
 
   // ── No API key → instant local answer ────────────────────────────────────
   if (!hasValidApiKey()) {
-    console.log('[ChatAgent] No API key. Streaming local assistant answer.');
-    await streamText(getFallbackAnswer(message), res);
-    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-    res.end();
+    console.log('[ChatAgent] No API key. Using local assistant.');
+    await sendFallback(message);
     return;
   }
 
-  // ── Gemini function-calling chat ──────────────────────────────────────────
+  // ── Gemini direct-prompt approach ─────────────────────────────────────────
+  // We inject the live transaction data directly into the prompt instead of
+  // using function-calling tools (which some model variants don't support).
   try {
-    const model = getModel();
-    const chat  = model.startChat({
-      history: [
-        {
-          role:  'user',
-          parts: [{ text:
-            'System: You are a financial analyst assistant for Ledger AI. ' +
-            'Always use the provided tools to look up live transaction data before answering. ' +
-            'Provide specific numbers, be concise, and use markdown bullet points when listing items.'
-          }],
-        },
-        {
-          role:  'model',
-          parts: [{ text: 'Understood. I will query live data and answer concisely.' }],
-        },
-      ],
-      tools: [{ functionDeclarations: tools }],
-    });
+    const dataContext = buildDataContext();
 
-    let result = await chat.sendMessageStream(message);
+    const prompt =
+      `You are a financial analyst assistant for Ledger AI.\n` +
+      `Use ONLY the live data below to answer the user's question. ` +
+      `Be concise, factual, and use specific numbers from the data. ` +
+      `Use markdown for formatting (bold for numbers, bullet points for lists). ` +
+      `If the question is about something not in the data, say so clearly.\n\n` +
+      `${dataContext}\n\n` +
+      `USER QUESTION: ${message}`;
 
-    let keepLooping = true;
-    let loopCount   = 0;
+    const model  = getModel();
+    const result = await model.generateContentStream(prompt);
 
-    while (keepLooping && loopCount < 6) {
-      loopCount++;
-      let functionCall = null;
-
-      for await (const chunk of result.stream) {
-        // Check for function call first (chunk.text() throws if functionCalls present)
-        const calls = chunk.functionCalls ? chunk.functionCalls() : null;
-        if (calls && calls.length > 0) {
-          functionCall = calls[0];
-        } else {
-          try {
-            const text = chunk.text();
-            if (text) res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
-          } catch (_) { /* chunk has no text (e.g. purely a usage metadata chunk) */ }
-        }
-      }
-
-      if (functionCall) {
-        res.write(`data: ${JSON.stringify({ type: 'tool_call_start', name: functionCall.name })}\n\n`);
-        const toolResponse = executeTool(functionCall.name, functionCall.args || {});
-        res.write(`data: ${JSON.stringify({ type: 'tool_call_result', name: functionCall.name })}\n\n`);
-
-        result = await chat.sendMessageStream([{
-          functionResponse: { name: functionCall.name, response: toolResponse },
-        }]);
-      } else {
-        keepLooping = false;
-      }
+    for await (const chunk of result.stream) {
+      try {
+        const text = chunk.text();
+        if (text) res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
+      } catch (_) { /* metadata-only chunk */ }
     }
 
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
 
   } catch (error) {
-    const is429 = error.status === 429 || (error.message && error.message.includes('429')) || error.message === 'RATE_LIMIT';
-
+    const is429 = error.status === 429 || (error.message && error.message.includes('429'));
     if (is429) {
-      console.log('[ChatAgent] Quota exhausted. Streaming local assistant answer.');
+      console.log('[ChatAgent] Quota exhausted. Using local assistant.');
     } else {
-      console.error('[ChatAgent] Stream error:', error.message || error);
+      console.error('[ChatAgent] Gemini error:', error.message);
     }
-
-    // Stream a graceful local fallback answer
-    await streamText(getFallbackAnswer(message), res);
-    res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
-    res.end();
+    await sendFallback(message);
   }
 }
