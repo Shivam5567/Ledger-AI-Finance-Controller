@@ -6,7 +6,6 @@ db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 db.pragma('busy_timeout = 5000');
 
-// Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,6 +20,30 @@ db.exec(`
     action_draft TEXT,
     action_type TEXT,
     action_status TEXT DEFAULT 'none'
+  );
+`);
+
+try {
+  db.exec(`ALTER TABLE transactions ADD COLUMN confidence TEXT;`);
+} catch (e) {}
+
+try {
+  db.exec(`ALTER TABLE transactions ADD COLUMN resolved_at TEXT;`);
+} catch (e) {}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS dismissed_rules (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    flag_type TEXT NOT NULL,
+    description_pattern TEXT NOT NULL,
+    dismissed_at TEXT NOT NULL
+  );
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT
   );
 `);
 
@@ -41,8 +64,8 @@ export function getTransactionById(id) {
 
 export function insertTransactions(rows) {
   const insert = db.prepare(`
-    INSERT INTO transactions (date, description, amount, type, invoice_ref, category, flags, anomaly_explanation, action_draft, action_type, action_status)
-    VALUES (@date, @description, @amount, @type, @invoice_ref, @category, @flags, @anomaly_explanation, @action_draft, @action_type, @action_status)
+    INSERT INTO transactions (date, description, amount, type, invoice_ref, category, flags, anomaly_explanation, action_draft, action_type, action_status, confidence, resolved_at)
+    VALUES (@date, @description, @amount, @type, @invoice_ref, @category, @flags, @anomaly_explanation, @action_draft, @action_type, @action_status, @confidence, @resolved_at)
   `);
 
   const insertMany = db.transaction((transactions) => {
@@ -55,7 +78,9 @@ export function insertTransactions(rows) {
         anomaly_explanation: tx.anomaly_explanation || null,
         action_draft: tx.action_draft || null,
         action_type: tx.action_type || null,
-        action_status: tx.action_status || 'none'
+        action_status: tx.action_status || 'none',
+        confidence: tx.confidence || null,
+        resolved_at: tx.resolved_at || null
       });
     }
   });
@@ -82,84 +107,80 @@ export function clearTransactions() {
   db.prepare('DELETE FROM transactions').run();
   try {
     db.prepare('DELETE FROM sqlite_sequence WHERE name = "transactions"').run();
-  } catch (e) {
-    // sqlite_sequence may not exist yet
-  }
+  } catch (e) {}
 }
 
 export function getSummary() {
   const all = getAllTransactions();
-  
   let totalIncome = 0;
   let totalExpenses = 0;
   let flaggedCount = 0;
   const byCategoryMap = {};
 
   for (const tx of all) {
-    if (tx.type === 'income') {
-      totalIncome += tx.amount;
-    } else if (tx.type === 'refund') {
-      // Refunds reduce expenses
-      totalExpenses -= tx.amount;
-    } else if (tx.type === 'expense') {
-      totalExpenses += tx.amount;
-    }
-
-    if (tx.flags && tx.flags.length > 0) {
-      flaggedCount++;
-    }
-
-    // Only track expense categories for the spend chart
+    if (tx.type === 'income') totalIncome += tx.amount;
+    else if (tx.type === 'refund') totalExpenses -= tx.amount;
+    else if (tx.type === 'expense') totalExpenses += tx.amount;
+    if (tx.flags && tx.flags.length > 0) flaggedCount++;
     if (tx.category && tx.type === 'expense') {
       byCategoryMap[tx.category] = (byCategoryMap[tx.category] || 0) + tx.amount;
     }
   }
 
-  // Convert to array sorted by total descending
   const byCategory = Object.entries(byCategoryMap)
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);
 
-  return {
-    totalIncome,
-    totalExpenses,
-    net: totalIncome - totalExpenses,
-    flaggedCount,
-    byCategory
-  };
+  return { totalIncome, totalExpenses, net: totalIncome - totalExpenses, flaggedCount, byCategory };
 }
 
 export function getTransactionsByFilter(filter = {}) {
   let query = 'SELECT * FROM transactions WHERE 1=1';
   const params = [];
-
-  if (filter.category) {
-    query += ' AND category = ?';
-    params.push(filter.category);
-  }
-  if (filter.type) {
-    query += ' AND type = ?';
-    params.push(filter.type);
-  }
-  if (filter.dateFrom) {
-    query += ' AND date >= ?';
-    params.push(filter.dateFrom);
-  }
-  if (filter.dateTo) {
-    query += ' AND date <= ?';
-    params.push(filter.dateTo);
-  }
-  
+  if (filter.category) { query += ' AND category = ?'; params.push(filter.category); }
+  if (filter.type) { query += ' AND type = ?'; params.push(filter.type); }
+  if (filter.dateFrom) { query += ' AND date >= ?'; params.push(filter.dateFrom); }
+  if (filter.dateTo) { query += ' AND date <= ?'; params.push(filter.dateTo); }
   let results = db.prepare(query).all(...params).map(row => {
     row.flags = JSON.parse(row.flags || '[]');
     return row;
   });
-
   if (filter.hasFlag === true) {
     results = results.filter(tx => tx.flags && tx.flags.length > 0);
   }
-
   return results;
+}
+
+export function getDismissedRules() {
+  return db.prepare('SELECT * FROM dismissed_rules ORDER BY dismissed_at DESC').all();
+}
+
+export function createDismissedRule(flag_type, description_pattern) {
+  const now = new Date().toISOString();
+  return db.prepare('INSERT INTO dismissed_rules (flag_type, description_pattern, dismissed_at) VALUES (?, ?, ?)').run(flag_type, description_pattern, now);
+}
+
+export function deleteDismissedRule(id) {
+  db.prepare('DELETE FROM dismissed_rules WHERE id = ?').run(id);
+}
+
+export function isDismissed(flag_type, description) {
+  // Check if a similar transaction was previously dismissed
+  const rules = getDismissedRules();
+  return rules.some(r => {
+    if (r.flag_type !== flag_type) return false;
+    // Match if description contains the pattern (case insensitive)
+    return description.toLowerCase().includes(r.description_pattern.toLowerCase());
+  });
+}
+
+export function setMetadata(key, value) {
+  db.prepare('INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)').run(key, String(value));
+}
+
+export function getMetadata(key) {
+  const row = db.prepare('SELECT value FROM metadata WHERE key = ?').get(key);
+  return row ? row.value : null;
 }
 
 export default db;

@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 
-// Shared fetch wrapper for basic JSON APIs
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
   if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -71,18 +70,16 @@ export function useRunAgent(onProgress) {
     setIsRunning(true);
     try {
       const res = await fetch('/api/agent/run', { method: 'POST' });
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
-
       let buffer = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n\n');
-        buffer = lines.pop(); // keep incomplete chunk in buffer
-        
+        buffer = lines.pop();
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
@@ -105,18 +102,18 @@ export function useRunAgent(onProgress) {
 }
 
 export function useChat() {
-  const [messages, setMessages] = useState([]);
-  const [isTyping, setIsTyping] = useState(false);
+  const [messages, setMessages]   = useState([]);
+  const [isTyping, setIsTyping]   = useState(false);
   const [toolState, setToolState] = useState(null);
 
   const sendMessage = async (text) => {
     const userMsg = { id: Date.now(), role: 'user', content: text };
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setIsTyping(true);
     setToolState(null);
 
     const aiMsgId = Date.now() + 1;
-    setMessages((prev) => [...prev, { id: aiMsgId, role: 'ai', content: '' }]);
+    setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '' }]);
 
     try {
       const res = await fetch('/api/chat', {
@@ -124,63 +121,54 @@ export function useChat() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
       });
-      
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
-      
-      let buffer = '';
-      let receivedAnyToken = false;
+      let buffer = '', receivedAnyToken = false;
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n\n');
         buffer = lines.pop() || '';
-        
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.substring(6));
-              
               if (data.type === 'token') {
                 receivedAnyToken = true;
-                setMessages((prev) => 
-                  prev.map(m => m.id === aiMsgId ? { ...m, content: m.content + data.text } : m)
-                );
+                setMessages(prev => prev.map(m =>
+                  m.id === aiMsgId ? { ...m, content: m.content + data.text } : m
+                ));
               } else if (data.type === 'tool_call_start') {
-                setToolState(`🔍 Querying transactions...`);
+                setToolState('🔍 Querying live data...');
               } else if (data.type === 'tool_call_result') {
                 setToolState(null);
               } else if (data.type === 'error') {
-                setMessages((prev) => 
-                  prev.map(m => m.id === aiMsgId ? { ...m, content: m.content || `⚠️ Error: ${data.message || 'Unable to complete request'}` } : m)
-                );
+                setMessages(prev => prev.map(m =>
+                  m.id === aiMsgId ? { ...m, content: m.content || `⚠️ ${data.message}` } : m
+                ));
               }
-            } catch (e) {
-              console.error('Parse error in chat:', e);
-            }
+            } catch (e) { /* parse error */ }
           }
         }
       }
 
-      // If stream ended without any tokens
       if (!receivedAnyToken) {
-        setMessages((prev) => 
-          prev.map(m => m.id === aiMsgId && !m.content ? { ...m, content: 'Sorry, I could not generate a response. Please try again.' } : m)
-        );
+        setMessages(prev => prev.map(m =>
+          m.id === aiMsgId && !m.content
+            ? { ...m, content: 'Sorry, I could not generate a response. Please try again.' }
+            : m
+        ));
       }
-
     } catch (err) {
-      console.error('Chat error:', err);
-      setMessages((prev) => 
-        prev.map(m => m.id === aiMsgId && !m.content ? { ...m, content: `⚠️ Something went wrong connecting to the assistant. (${err.message})` } : m)
-      );
+      setMessages(prev => prev.map(m =>
+        m.id === aiMsgId && !m.content
+          ? { ...m, content: `⚠️ Something went wrong. (${err.message})` }
+          : m
+      ));
     } finally {
       setIsTyping(false);
       setToolState(null);
@@ -193,17 +181,50 @@ export function useChat() {
 export function useAction() {
   const handleAction = async (id, actionType) => {
     try {
-      const res = await fetchJson(`/api/actions/${id}/${actionType}`, { method: 'POST' });
-      return res;
+      return await fetchJson(`/api/actions/${id}/${actionType}`, { method: 'POST' });
     } catch (err) {
       console.error(`Failed to ${actionType} action:`, err);
       throw err;
     }
   };
 
-  const approve = (id) => handleAction(id, 'approve');
-  const dismiss = (id) => handleAction(id, 'dismiss');
-  const reset = (id) => handleAction(id, 'reset');
+  return {
+    approve: (id) => handleAction(id, 'approve'),
+    dismiss: (id) => handleAction(id, 'dismiss'),
+    reset:   (id) => handleAction(id, 'reset'),
+  };
+}
 
-  return { approve, dismiss, reset };
+export function useExport() {
+  const exportCsv = () => {
+    const link = document.createElement('a');
+    link.href = '/api/export';
+    link.download = 'ledger-export.csv';
+    link.click();
+  };
+  return { exportCsv };
+}
+
+export function useDismissedRules() {
+  const [rules, setRules] = useState([]);
+
+  const fetchRules = useCallback(async () => {
+    try {
+      const data = await fetchJson('/api/rules');
+      setRules(data);
+    } catch (err) {
+      console.error('Failed to fetch dismissed rules:', err);
+    }
+  }, []);
+
+  const deleteRule = async (id) => {
+    try {
+      await fetchJson(`/api/rules/${id}`, { method: 'DELETE' });
+      setRules(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      console.error('Failed to delete rule:', err);
+    }
+  };
+
+  return { rules, fetchRules, deleteRule };
 }

@@ -81,6 +81,32 @@ The app will be available at **http://localhost:5173**
 | Styling | Tailwind CSS v4 |
 | Design | Dark Glassmorphism |
 
+## Razorpay Integration (Roadmap)
+
+Ledger AI is designed to connect directly to **Razorpay's Payments API** and **Payouts API** for real-time transaction ingestion — eliminating the need for CSV uploads entirely.
+
+The agent pipeline (categorization, reconciliation, anomaly detection, action drafting) is **API-agnostic** and ready for live data. Integration would involve:
+
+1. **Webhook ingestion** — receive `payment.captured`, `refund.processed`, and `payout.processed` events from Razorpay in real-time
+2. **Automatic categorization** — new transactions run through the Gemini AI pipeline immediately on receipt
+3. **Live reconciliation** — match Razorpay order IDs directly to invoice references
+4. **Proactive alerts** — push anomaly notifications before end-of-day review
+
+```javascript
+// Example: Razorpay webhook handler (planned)
+app.post('/webhook/razorpay', (req, res) => {
+  const event = req.body;
+  if (event.event === 'payment.captured') {
+    const tx = mapRazorpayToTransaction(event.payload.payment.entity);
+    insertTransactions([tx]);
+    runIncrementalPipeline(tx); // categorize + anomaly check immediately
+  }
+  res.json({ status: 'ok' });
+});
+```
+
+This positions Ledger AI as a production-ready finance controller for any business using Razorpay as their payment gateway — with zero manual data entry.
+
 ## License
 
 MIT

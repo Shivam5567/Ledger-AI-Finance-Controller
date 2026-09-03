@@ -5,33 +5,43 @@ import { callGemini, hasValidApiKey } from '../utils/gemini.js';
 // Template drafts (used when API is unavailable or quota is exhausted)
 // ---------------------------------------------------------------------------
 function makeReminderEmailDraft(tx) {
-  return `Subject: Invoice Reference Required — Payment Received ($${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+  return `Subject: Payment Reminder — Invoice Required — $${tx.amount}
 
-Hi Finance Team,
+Dear [Client/Finance Team],
 
-We recently received a payment of $${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} on ${tx.date} for "${tx.description}".
+We hope this message finds you well. Our records indicate we received a payment of $${tx.amount} on ${tx.date} referencing "${tx.description}", however we were unable to match this to any outstanding invoice in our system.
 
-However, no invoice reference was provided with this payment. Could you please reply with the corresponding invoice number so we can properly reconcile this in our ledger?
+To ensure accurate reconciliation, could you please:
+  1. Share the invoice number or reference for this payment
+  2. Confirm the period or service this payment covers
 
-Thank you,
-Accounts Receivable Team`;
+Once we receive this information, we will update our records immediately.
+
+Best regards,
+Finance & Accounts Team
+Ledger AI Controller`;
 }
 
 function makeRefundRequestDraft(tx) {
   const flagDetail = tx.flags.includes('duplicate_invoice')
-    ? `Duplicate Invoice Ref (${tx.invoice_ref})`
-    : 'Duplicate Charge';
-  return `REFUND / DUPLICATE DISCREPANCY NOTE
-─────────────────────────────────────
-Transaction ID : ${tx.id}
-Date           : ${tx.date}
-Description    : ${tx.description}
-Amount         : $${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-Flag           : ${flagDetail}
+    ? 'duplicate_invoice'
+    : 'duplicate';
+  return `Subject: Duplicate Payment Detected — Refund Request
 
-Recommended Action:
-Contact vendor/client regarding the duplicate transaction and request a refund or
-credit memo of $${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}.`;
+Hi Team,
+
+Our automated reconciliation system has flagged a potential duplicate payment:
+
+  Transaction: ${tx.description}
+  Amount:      $${tx.amount}
+  Date:        ${tx.date}
+  Flag:        ${flagDetail}
+
+This charge appears to be a duplicate of a previous transaction. Please verify with the relevant vendor/client and initiate a refund or credit memo for $${tx.amount} if confirmed.
+
+Action required by: [3 business days from date]
+
+Ledger AI — Automated Finance Controller`;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,9 +72,19 @@ export async function generateActions(transactions) {
       } else if (tx.action_type === 'refund_request') {
         tx._fallbackDraft = makeRefundRequestDraft(tx);
       } else if (tx.action_type === 'anomaly_explanation') {
-        tx._fallbackDraft = tx.anomaly_explanation ||
-          `Anomaly Review Note: Charge of $${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} ` +
-          `for ${tx.description} on ${tx.date} exceeds the historical category baseline. Please verify authorization.`;
+        tx._fallbackDraft = `⚠️ SPEND ALERT — ${tx.description}
+────────────────────────────────────────
+Amount    : $${tx.amount}
+Date      : ${tx.date}
+Category  : ${tx.category || 'N/A'}
+Reason    : This charge exceeds the typical spend threshold for this category.
+
+Recommended Action:
+Verify this expense with the relevant budget owner before approving. If this is
+a legitimate one-time cost, approve and add a note. If unexpected, investigate
+further before processing payment.
+
+Ledger AI — Automated Anomaly Detection`;
       }
     }
   }
