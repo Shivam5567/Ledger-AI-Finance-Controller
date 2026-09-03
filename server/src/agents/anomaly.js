@@ -1,5 +1,5 @@
 import { updateTransaction } from '../db.js';
-import { callGemini, shouldUseGemini } from '../utils/gemini.js';
+import { callGemini, hasValidApiKey } from '../utils/gemini.js';
 
 export async function detectAnomalies(transactions) {
   console.log(`[Anomaly] Running anomaly detection on ${transactions.length} transactions...`);
@@ -82,8 +82,7 @@ export async function detectAnomalies(transactions) {
 
   // Step 4: BATCH all anomaly explanations into ONE single Gemini call
   if (anomalousTxs.length > 0) {
-    if (shouldUseGemini()) {
-      console.log(`[Anomaly] Running batched Gemini explanation call for ${anomalousTxs.length} items (1 API call)...`);
+    if (hasValidApiKey()) {
       const itemsList = anomalousTxs.map(t => 
         `ID: ${t.id} | Desc: ${t.description} | Amount: $${t.amount} | Category: ${t.category} | Baseline Avg: $${t.baselineAvg.toFixed(2)} | Multiplier: ${t.multiplier}x`
       ).join('\n');

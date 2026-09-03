@@ -2,25 +2,19 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 let genAI = null;
 
+export function hasValidApiKey() {
+  const key = process.env.GEMINI_API_KEY;
+  return key && key !== 'your_gemini_api_key_here' && key.startsWith('AIza');
+}
+
 function getGenAI() {
   if (!genAI) {
-    if (!process.env.GEMINI_API_KEY) {
-      console.warn("GEMINI_API_KEY is not set. Gemini calls will fail.");
+    if (!hasValidApiKey()) {
+      console.warn("[Gemini API] No valid AI Studio key found (key should start with 'AIza'). Running local AI controller.");
     }
     genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
   }
   return genAI;
-}
-
-export function shouldUseGemini() {
-  if (process.env.MOCK_AI === 'true') {
-    return false;
-  }
-  const key = process.env.GEMINI_API_KEY;
-  if (!key || key === 'your_gemini_api_key_here' || key.trim() === '') {
-    return false;
-  }
-  return true;
 }
 
 export function getModel() {

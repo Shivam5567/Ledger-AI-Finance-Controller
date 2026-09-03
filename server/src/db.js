@@ -24,22 +24,9 @@ db.exec(`
   );
 `);
 
-function safeParseFlags(val) {
-  if (Array.isArray(val)) return val;
-  if (!val) return [];
-  try {
-    const parsed = typeof val === 'string' ? JSON.parse(val) : val;
-    if (Array.isArray(parsed)) return parsed;
-    if (typeof parsed === 'string') return safeParseFlags(parsed);
-    return [];
-  } catch (e) {
-    return [];
-  }
-}
-
 export function getAllTransactions() {
   return db.prepare('SELECT * FROM transactions').all().map(row => {
-    row.flags = safeParseFlags(row.flags);
+    row.flags = JSON.parse(row.flags || '[]');
     return row;
   });
 }
@@ -47,7 +34,7 @@ export function getAllTransactions() {
 export function getTransactionById(id) {
   const row = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
   if (row) {
-    row.flags = safeParseFlags(row.flags);
+    row.flags = JSON.parse(row.flags || '[]');
   }
   return row;
 }
@@ -82,7 +69,7 @@ export function updateTransaction(id, fields) {
   
   for (const [key, value] of Object.entries(fields)) {
     setClauses.push(`${key} = ?`);
-    params.push(key === 'flags' ? JSON.stringify(safeParseFlags(value)) : value);
+    params.push(key === 'flags' ? JSON.stringify(value) : value);
   }
   
   params.push(id);
@@ -112,6 +99,7 @@ export function getSummary() {
     if (tx.type === 'income') {
       totalIncome += tx.amount;
     } else if (tx.type === 'refund') {
+      // Refunds reduce expenses
       totalExpenses -= tx.amount;
     } else if (tx.type === 'expense') {
       totalExpenses += tx.amount;
@@ -121,11 +109,13 @@ export function getSummary() {
       flaggedCount++;
     }
 
+    // Only track expense categories for the spend chart
     if (tx.category && tx.type === 'expense') {
       byCategoryMap[tx.category] = (byCategoryMap[tx.category] || 0) + tx.amount;
     }
   }
 
+  // Convert to array sorted by total descending
   const byCategory = Object.entries(byCategoryMap)
     .map(([category, total]) => ({ category, total }))
     .sort((a, b) => b.total - a.total);
@@ -161,7 +151,7 @@ export function getTransactionsByFilter(filter = {}) {
   }
   
   let results = db.prepare(query).all(...params).map(row => {
-    row.flags = safeParseFlags(row.flags);
+    row.flags = JSON.parse(row.flags || '[]');
     return row;
   });
 
