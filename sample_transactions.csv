@@ -1,0 +1,29 @@
+date,description,amount,type,invoice_ref
+2026-01-03,Office Rent - January,4500.00,expense,
+2026-01-05,Payroll - Engineering Team,28000.00,expense,
+2026-01-05,Payroll - Marketing Team,12000.00,expense,
+2026-01-07,AWS Infrastructure - Monthly,2400.00,expense,
+2026-01-08,Google Workspace Subscription,450.00,expense,
+2026-01-10,Client Payment - Acme Corp,15000.00,income,INV-2026-001
+2026-01-12,Slack Business Plan,200.00,expense,
+2026-01-14,Facebook Ads Campaign,3200.00,expense,
+2026-01-15,Client Payment - Beta Industries,8500.00,income,INV-2026-002
+2026-01-17,GitHub Enterprise,600.00,expense,
+2026-01-18,Refund - Overcharged License,350.00,refund,REF-001
+2026-01-20,Google Ads Campaign,2800.00,expense,
+2026-01-22,Client Payment - Gamma Solutions,12000.00,income,
+2026-01-23,Notion Team Plan,320.00,expense,
+2026-01-25,AWS Infrastructure - Emergency Scale,7800.00,expense,
+2026-01-27,Payroll - Engineering Team,28000.00,expense,
+2026-01-28,Client Payment - Delta Corp,6500.00,income,INV-2026-004
+2026-01-29,Figma Enterprise License,750.00,expense,
+2026-01-30,Client Payment - Acme Corp,15000.00,income,INV-2026-001
+2026-02-01,Office Rent - February,4500.00,expense,
+2026-02-03,Payroll - Engineering Team,28000.00,expense,
+2026-02-05,AWS Infrastructure - Monthly,2350.00,expense,
+2026-02-06,Client Payment - Epsilon Ltd,9200.00,income,INV-2026-006
+2026-02-07,Google Workspace Subscription,450.00,expense,
+2026-02-08,Facebook Ads Campaign,3200.00,expense,
+2026-02-08,Facebook Ads Campaign,3200.00,expense,
+2026-02-10,HubSpot CRM Subscription,1200.00,expense,
+2026-02-12,Client Payment - Zeta Inc,4800.00,income,INV-2026-007
