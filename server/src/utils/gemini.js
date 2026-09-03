@@ -19,23 +19,19 @@ export function getModel() {
 
 export async function callGemini(prompt, options = {}) {
   const model = getModel();
-  
-  const delays = [1000, 2000, 4000];
   let lastError;
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = await model.generateContent(prompt);
       let text = result.response.text();
       
       if (options.json) {
-        // Strip markdown code fences if present (e.g. ```json ... ``` or ``` ...)
         let cleaned = text.trim();
         const codeBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
         if (codeBlockMatch) {
           cleaned = codeBlockMatch[1].trim();
         } else {
-          // Find first [ or { and last ] or }
           const firstBracket = cleaned.search(/[\[\{]/);
           const lastBracket = Math.max(cleaned.lastIndexOf(']'), cleaned.lastIndexOf('}'));
           if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
@@ -48,8 +44,15 @@ export async function callGemini(prompt, options = {}) {
       return text;
     } catch (error) {
       lastError = error;
-      if (attempt < 2) {
-        await new Promise(r => setTimeout(r, delays[attempt]));
+      // If 429 Rate Limit, don't waste time retrying fast
+      const isRateLimit = error.status === 429 || (error.message && error.message.includes('429'));
+      if (isRateLimit) {
+        console.log('[Gemini API] Quota/Rate limit reached (429). Using local intelligent fallback.');
+        throw new Error('429 Rate Limit Exceeded');
+      }
+
+      if (attempt < 1) {
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
   }

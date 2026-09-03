@@ -244,7 +244,12 @@ export async function handleChatMessage(message, res) {
     res.end();
 
   } catch (error) {
-    console.error("Chat Error:", error);
+    const isRateLimit = error.status === 429 || (error.message && error.message.includes('429'));
+    if (isRateLimit) {
+      console.log("[ChatAgent] Gemini rate limit reached (429), streaming local intelligent answer.");
+    } else {
+      console.error("[ChatAgent] Stream error:", error.message || error);
+    }
     // Fallback to local QA answer on error
     const fallbackAnswer = getFallbackChatAnswer(message);
     res.write(`data: ${JSON.stringify({ type: 'token', text: fallbackAnswer })}\n\n`);
