@@ -105,6 +105,19 @@ function getFallbackChatAnswer(message) {
     }
   }
 
+  // Concept / Definition queries
+  if (q.includes('what is a transaction') || q.includes('what is transaction') || q.includes('explain transaction') || q.includes('definition of transaction')) {
+    return `A **transaction** is any financial activity where money moves into or out of your business account. In Ledger AI, each transaction has a date, description, amount, type (*income*, *expense*, or *refund*), category, and any associated invoice references.`;
+  }
+
+  if (q.includes('what is anomaly') || q.includes('explain anomaly') || q.includes('anomaly detection')) {
+    return `An **anomaly** is an unusual or unexpected transaction—such as a sudden spending spike (e.g., an AWS charge 3.3x higher than your monthly average) or an unexpected large outflow. Ledger AI flags these automatically for review.`;
+  }
+
+  if (q.includes('what is reconciliation') || q.includes('explain reconciliation')) {
+    return `**Reconciliation** is the process of matching bank payments against customer invoice references to ensure every dollar received corresponds to an issued bill, preventing unmatched income or lost payments.`;
+  }
+
   // 8. Overall financial summary / health query
   return `**Ledger AI Financial Health Summary:**
 - **Total Income:** $${summary.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}
