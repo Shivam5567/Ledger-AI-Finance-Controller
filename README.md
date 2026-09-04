@@ -88,22 +88,36 @@ Here is how Ledger AI directly fulfills each benchmark:
 
 | Benchmark Parameter | Result | Operational Note |
 | :--- | :--- | :--- |
-| Dataset Size | 55 transactions | Multi-source batch including revenue, vendors, and payroll |
-| Automatically Reconciled | 49 transactions (89.1%) | Matched against invoices and historical ledgers |
-| Flagged Exceptions | 6 transactions (10.9%) | Transparently surfaced for human review |
-| Average LLM Inference Latency | < 750 ms | Accelerated by Groq Llama-3 LPUs |
-| False Assumption Rate | 0.0% | Ambiguous items are never silently auto-closed |
+| Ingested Transactions | 55 records | Multi-source batch: payment rails, vendors, payroll |
+| Automatically Reconciled | 46 records (83.6%) | Audit verified against invoices and counterparties |
+| Exceptions Flagged | 9 records (16.4%) | Isolated for human review with plain-English rationales |
+| Anomalies Detected | 2 flagged | Significant spend surge and duplicate billing |
+| Action Drafts Synthesized | 9 pre-drafted | Ready for 1-click controller authorization |
+| Pipeline Execution Time | 5.9 seconds | Sub-second inference powered by Groq LPU engine |
+| Verified Settlement Inflow | ₹1,77,700.00 | Of ₹2,26,500.00 total inflow (78.5% settled) |
+| Pending Authorizations | ₹48,800.00 | Awaiting payment gateway / bank clearing |
+| Net Reconciled Balance | -₹34,078.00 | Total verified outflow: -₹2,11,778.00 |
+| Monthly Run-Rate Forecast | ₹78,700.00 | Predictive projection (Payroll ₹56k, Infra ₹4.8k, Marketing ₹8.9k, Rent ₹9k) |
 
-### Detailed Exception Breakdown
+### Detailed Exception Breakdown (The 9 Honest Edge Cases)
 
-1. Missing Invoice Reference (Income: $12,000.00 from Gamma Inc)
-   The client payment was received into the bank account, but lacked an invoice identifier in the settlement feed. Flagged for receivable matching.
-2. Duplicate Transaction Reference (Vendor charge: $3,200.00)
-   Two distinct charges recorded with the same billing reference on adjacent dates. Flagged as a potential duplicate vendor debit.
-3. Category Spending Spike (Cloud infrastructure: $6,500.00)
-   Exceeded the category running average ($2,400.00) by over 2.7x. Flagged for infrastructure budget review.
-4. Unpaired SaaS Debit ($450.00 Google Workspace)
-   Payment recorded without a corresponding purchase requisition. Flagged for recurring expense verification.
+1. Missing Invoice References (4 Income Items: ₹33,800.00 Total)
+   - Client Payment - Upsilon Inc (+₹8,300.00 on 2026-08-02): Bank settlement arrived without counterparty invoice reference ID.
+   - Client Payment - Xi Pvt Ltd (+₹6,200.00 on 2026-07-26): Unlinked inflow requiring receivable ledger assignment.
+   - Client Payment - Theta Corp (+₹7,300.00 on 2026-07-15): Settlement inflow missing billing reference.
+   - Client Payment - Gamma Inc (+₹12,000.00 on 2026-07-05): Customer payment received without invoice identifier in metadata.
+
+2. Duplicate Vendor Billing (2 Expense Items: ₹6,400.00 Total)
+   - Facebook Ads Campaign (-₹3,200.00 on 2026-07-05)
+   - Facebook Ads Campaign (-₹3,200.00 on 2026-07-08)
+   Two identical debits billed within a 3-day window. Flagged as potential duplicate merchant debit.
+
+3. Critical Category Spend Surges (2 Expense Items: ₹17,000.00 Total)
+   - AWS Infrastructure - Emergency Scale (-₹7,800.00 on 2026-07-10): Billed at 3.3x the historical category average of ₹2,400.00.
+   - AWS Infrastructure - Spike Recovery (-₹9,200.00 on 2026-08-01): Billed at 3.8x the historical category average of ₹2,400.00.
+
+4. Duplicate Invoice Reference Reuse (1 Income Item: ₹15,000.00)
+   - Client Payment - Acme Corp (+₹15,000.00 on 2026-07-12): Reused invoice identifier INV-2026-001 which had already been settled on 2026-07-01.
 
 ---
 
@@ -136,7 +150,7 @@ Here is how Ledger AI directly fulfills each benchmark:
                      |                                         |
                      v                                         v
          [ Controller Dashboard UI ]              [ Ask Copilot Assistant ]
-     - 89.1% Match Rate Metrics               - Streaming Q&A on Exceptions
+     - 83.6% Match Rate Metrics               - Streaming Q&A on Exceptions
      - Exception Action Approvals             - Root-Cause Interrogation
      - Clean SVG Glassmorphism                - Cash Float Queries
 ```
@@ -231,12 +245,12 @@ The server will boot on port 3001, and the client will be available at http://lo
 
 1. Ingest Data: Click Load Transactions to seed the 55-record benchmark batch.
 2. Reconcile: Click Reconcile Ledger. Watch the categorization, deterministic checks, and anomaly flags process in real time.
-3. Review Exceptions: Inspect the 6 flagged items. Click any highlighted row to view the AI explanation and the pre-drafted resolution memo.
+3. Review Exceptions: Inspect the 9 flagged items (Missing Invoices, Duplicate Payments, Spend Anomalies). Click any highlighted row to view the AI explanation and the pre-drafted resolution memo.
 4. Authorize Actions: Approve or dismiss items to verify the human-in-the-loop audit trail.
 5. Inquire with Copilot: Click Ask Copilot at the bottom-right and test queries such as:
    - "What is our current match rate and what are the top unresolvable exceptions?"
-   - "Why was transaction INV-2026-003 flagged?"
-   - "How much total money did we spend on engineering payroll?"
+   - "Why was invoice ref INV-2026-001 flagged as a duplicate reference?"
+   - "What is our biggest spend anomaly in cloud infrastructure?"
 
 ---
 
