@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: ledger-ai-server
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/index.js
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: NODE_ENV
+        value: production
