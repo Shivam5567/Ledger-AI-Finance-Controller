@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Layout from './components/Layout';
-import { QuixoticTopNav, QuixoticDock, QuixoticHeaderRow } from './components/QuixoticNavigation';
+import { QuixoticTopNav, QuixoticHeaderRow } from './components/QuixoticNavigation';
 import {
   QuixoticCardWidget,
   QuixoticBarChartCard,
@@ -22,6 +22,7 @@ import {
   useSummary,
   useDashboard,
   useIngest,
+  useUpload,
   useRunAgent,
   useAction,
   useExport,
@@ -30,19 +31,21 @@ import {
 export default function App() {
   const [activeTab, setActiveTab]         = useState('dashboard');
   const [hasIngested, setHasIngested]     = useState(false);
-  const [hasRunAgent, setHasRunAgent]     = useState(false);
   const [agentStage, setAgentStage]       = useState(null);
   const [agentProgress, setAgentProgress] = useState(0);
   const [agentResult, setAgentResult]     = useState(null);
   const [chatOpen, setChatOpen]           = useState(false);
+  const [copilotContextPrompt, setCopilotContextPrompt] = useState(null);
   const [reportData, setReportData]       = useState(null);
   const [isRefreshing, setIsRefreshing]   = useState(false);
+  const [showRunConfirm, setShowRunConfirm] = useState(false);
+  const isPipelineRunningRef              = useRef(false);
 
   // Separate Date Range & Transaction Status filter state
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: '',
-    label: '01 Jul – 04 Aug 2026',
+    label: '',
   });
   const [statusFilter, setStatusFilter]         = useState('all');
   const [interval, setIntervalState]             = useState('weekly');
@@ -52,7 +55,7 @@ export default function App() {
   const [selectedTx, setSelectedTx]               = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  const { transactions, refetch: refetchTx }     = useTransactions();
+  const { transactions, setTransactions, refetch: refetchTx } = useTransactions();
   const { summary,      refetch: refetchSummary } = useSummary();
   const {
     data: dashboardData,
@@ -68,13 +71,14 @@ export default function App() {
   });
 
   const { ingest, loading: isIngesting }          = useIngest();
+  const { upload, loading: isUploading }          = useUpload();
   const { approve, dismiss, reset }               = useAction();
   const { exportCsv }                             = useExport();
 
   // Fetch report data for reconciliation stats
   const fetchReport = useCallback(async () => {
     try {
-      const res = await fetch('/api/report');
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/report`);
       if (res.ok) {
         const data = await res.json();
         setReportData(data);
@@ -109,15 +113,34 @@ export default function App() {
     refetchDashboard();
   }, [refetchTx, refetchSummary, fetchReport, refetchDashboard]);
 
+  // Real-time automatic background syncing and window focus refresher
+  useEffect(() => {
+    const handleFocus = () => {
+      refetchAll();
+    };
+    window.addEventListener('focus', handleFocus);
+
+    const syncInterval = setInterval(() => {
+      if (!document.hidden && !isPipelineRunningRef.current) {
+        refetchAll();
+      }
+    }, 12000);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      clearInterval(syncInterval);
+    };
+  }, [refetchAll]);
+
+  // Mark ingested if database has transactions (NO automatic AI run triggers!)
   useEffect(() => {
     if (transactions.length > 0) {
       setHasIngested(true);
-      const hasCategories = transactions.some(t => t.category);
-      if (hasCategories) {
-        setHasRunAgent(true);
-      }
     }
   }, [transactions]);
+
+  // Derive whether the database has any data at all
+  const hasData = transactions.length > 0;
 
   const handleProgress = (data) => {
     setAgentStage(data.stage);
@@ -125,18 +148,32 @@ export default function App() {
 
     if (data.stage === 'complete') {
       setAgentResult(data);
-      setHasRunAgent(true);
+      if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+        setTransactions(data.data);
+      }
       refetchAll();
+    } else if (data.stage === 'error') {
+      setAgentStage('error');
     }
   };
 
   const { runAgent, isRunning } = useRunAgent(handleProgress);
 
+  // Derive explicit AI status machine: 'NOT_RUN' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+  const aiStatus = isRunning
+    ? 'RUNNING'
+    : agentStage === 'error'
+    ? 'FAILED'
+    : agentResult
+    ? 'COMPLETED'
+    : (dashboardData?.aiReconciliation?.status || 'NOT_RUN');
+
+  const latestRun = dashboardData?.aiReconciliation?.latestRun || null;
+
   const handleIngest = async () => {
     try {
       await ingest();
       setHasIngested(true);
-      setHasRunAgent(false);
       setAgentResult(null);
       setAgentStage(null);
       await refetchAll();
@@ -145,39 +182,156 @@ export default function App() {
     }
   };
 
-  const handleRunAgent = () => {
+  const handleUpload = async (csvContent) => {
+    try {
+      await upload(csvContent);
+      setHasIngested(true);
+      setAgentResult(null);
+      setAgentStage(null);
+      await refetchAll();
+    } catch (e) {
+      console.error('Upload error:', e);
+    }
+  };
+
+  const handleRunAgent = async () => {
+    if (isRunning || isPipelineRunningRef.current) return;
+    // Show confirmation if AI has already been completed for this period
+    if (aiStatus === 'COMPLETED' && !showRunConfirm) {
+      setShowRunConfirm(true);
+      return;
+    }
+    setShowRunConfirm(false);
+    isPipelineRunningRef.current = true;
     setAgentStage('ingest');
     setAgentResult(null);
-    runAgent();
+    try {
+      await runAgent({
+        startDate: dateRange.startDate || undefined,
+        endDate: dateRange.endDate || undefined,
+      });
+      await refetchAll();
+    } catch (err) {
+      console.error('AI execution error:', err);
+      setAgentStage('error');
+    } finally {
+      isPipelineRunningRef.current = false;
+    }
+  };
+
+  const handleDateRangeChange = (newRange) => {
+    setDateRange(newRange);
+    // Clear transient in-memory run result so the new date range's backend status is queried
+    setAgentResult(null);
+    setAgentStage(null);
+  };
+
+  const handleExplainWithCopilot = (tx) => {
+    if (!tx) return;
+    const explanation = tx.anomaly_explanation || (tx.flags?.length ? `Flagged with ${tx.flags.join(', ')}` : 'Standard transaction');
+    const prompt = `Can you analyze transaction #${tx.id} (${tx.description} for ₹${Math.abs(tx.amount).toLocaleString('en-IN')})? Status: ${tx.match_status || 'unmatched'}. Reason: ${explanation}. What action should be taken?`;
+    setCopilotContextPrompt(prompt);
+    setChatOpen(true);
   };
 
   const handleApprove = async (id) => {
+    // Optimistic instant real-time update
+    setTransactions(prev => prev.map(t => (t.id === id || t.id === Number(id)) ? {
+      ...t,
+      action_status: 'approved',
+      match_status: 'matched',
+      resolved_at: new Date().toISOString()
+    } : t));
     await approve(id);
     await refetchAll();
   };
 
   const handleDismiss = async (id) => {
+    // Optimistic instant real-time update
+    setTransactions(prev => prev.map(t => (t.id === id || t.id === Number(id)) ? {
+      ...t,
+      action_status: 'dismissed',
+      match_status: 'matched',
+      resolved_at: new Date().toISOString()
+    } : t));
     await dismiss(id);
     await refetchAll();
   };
 
   const handleReset = async (id) => {
+    // Optimistic instant real-time update
+    setTransactions(prev => prev.map(t => (t.id === id || t.id === Number(id)) ? {
+      ...t,
+      action_status: 'pending',
+      match_status: 'exception',
+      resolved_at: null
+    } : t));
     await reset(id);
     await refetchAll();
   };
 
-  // Calculate exception count for header/dock badge
-  const unresolvedExceptionCount = dashboardData?.discrepancies?.count !== undefined
-    ? dashboardData.discrepancies.count
-    : transactions.filter(
-        (t) =>
-          ((t.flags && t.flags.length > 0) || t.match_status === 'exception') &&
-          t.action_status !== 'approved' &&
-          t.action_status !== 'dismissed'
-      ).length;
+  // Calculate exception count for header/dock badge in real time
+  const unresolvedExceptionCount = transactions.filter(
+    (t) =>
+      ((t.flags && t.flags.length > 0) || t.match_status === 'exception') &&
+      t.action_status !== 'approved' &&
+      t.action_status !== 'dismissed'
+  ).length;
 
-  // Transactions list honoring active date and status filters
-  const currentFilteredTransactions = dashboardData?.allTransactions || transactions;
+  // Transactions list honoring active date and status filters in real time
+  const currentFilteredTransactions = useMemo(() => {
+    let list = (transactions && transactions.length > 0) ? transactions : (dashboardData?.allTransactions || []);
+    if (!list || list.length === 0) return [];
+
+    if (dateRange?.startDate) {
+      list = list.filter(t => t.date >= dateRange.startDate);
+    }
+    if (dateRange?.endDate) {
+      list = list.filter(t => t.date <= dateRange.endDate);
+    }
+
+    if (statusFilter === 'reconciled' || statusFilter === 'matched') {
+      list = list.filter(t => {
+        const isException = (t.match_status === 'exception' || (t.flags && t.flags.length > 0)) &&
+                            t.action_status !== 'approved' &&
+                            t.action_status !== 'dismissed';
+        return !isException;
+      });
+    } else if (statusFilter === 'exceptions' || statusFilter === 'exception') {
+      list = list.filter(t => {
+        const isException = (t.match_status === 'exception' || (t.flags && t.flags.length > 0)) &&
+                            t.action_status !== 'approved' &&
+                            t.action_status !== 'dismissed';
+        return isException;
+      });
+    } else if (statusFilter === 'pending') {
+      list = list.filter(t => t.action_status === 'pending');
+    }
+
+    return list;
+  }, [transactions, dashboardData?.allTransactions, dateRange?.startDate, dateRange?.endDate, statusFilter]);
+
+  // Live Settlement Metrics for realtime view in Settlements tab
+  const liveSettlementMetrics = useMemo(() => {
+    let verified = 0;
+    let totalIn = 0;
+    let pending = 0;
+    for (const t of currentFilteredTransactions) {
+      if (t.type === 'income') {
+        totalIn += t.amount;
+        const isExc = (t.match_status === 'exception' || (t.flags && t.flags.length > 0)) &&
+                      t.action_status !== 'approved' &&
+                      t.action_status !== 'dismissed';
+        if (isExc) pending += t.amount;
+        else verified += t.amount;
+      }
+    }
+    return {
+      verified: currentFilteredTransactions.length > 0 ? verified : (dashboardData?.settlement?.verifiedInflow ?? 0),
+      totalInflow: currentFilteredTransactions.length > 0 ? totalIn : (dashboardData?.ledger?.inflow ?? 0),
+      pending: currentFilteredTransactions.length > 0 ? pending : (dashboardData?.settlement?.pendingSettlement ?? 0),
+    };
+  }, [currentFilteredTransactions, dashboardData]);
 
   return (
     <Layout
@@ -189,18 +343,10 @@ export default function App() {
             setActiveTab(tab);
           }}
           exceptionCount={unresolvedExceptionCount}
-          onToggleChat={() => setChatOpen(prev => !prev)}
-        />
-      }
-      dock={
-        <QuixoticDock
-          activeTab={activeTab}
-          onSelectTab={(tab) => {
-            if (tab === 'exceptions') setExceptionsFilter('all');
-            setActiveTab(tab);
+          onToggleChat={() => {
+            setCopilotContextPrompt(null);
+            setChatOpen(prev => !prev);
           }}
-          onToggleChat={() => setChatOpen(prev => !prev)}
-          exceptionCount={unresolvedExceptionCount}
         />
       }
       headerRow={
@@ -208,10 +354,10 @@ export default function App() {
           <QuixoticHeaderRow
             onRunAgent={handleRunAgent}
             isRunning={isRunning}
+            aiStatus={aiStatus}
             txCount={dashboardData?.ledger?.transactionCount ?? transactions.length}
-            onToggleChat={() => setChatOpen(true)}
             dateRange={dateRange}
-            onDateRangeChange={(newRange) => setDateRange(newRange)}
+            onDateRangeChange={handleDateRangeChange}
             statusFilter={statusFilter}
             onStatusFilterChange={(newStatus) => setStatusFilter(newStatus)}
             lastSyncedAt={lastSyncedAt}
@@ -223,7 +369,28 @@ export default function App() {
     >
       {/* ── 1. Empty State (when no transactions loaded at all) ── */}
       {!hasIngested ? (
-        <EmptyState onIngest={handleIngest} isIngesting={isIngesting} />
+        <EmptyState onIngest={handleIngest} onUpload={handleUpload} isIngesting={isIngesting} isUploading={isUploading} />
+      ) : hasData && aiStatus === 'NOT_RUN' ? (
+        /* ── 2. Pending AI Reconciliation (data exists, AI not yet run) ── */
+        <div className="flex flex-col items-center justify-center py-20 px-6 animate-fade-in">
+          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-3xl mb-5">
+            🤖
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">
+            AI Reconciliation Required
+          </h3>
+          <p className="text-sm text-gray-500 mb-6 max-w-md text-center leading-relaxed">
+            {transactions.length} transactions found in the ledger. Run AI reconciliation to
+            categorize, detect anomalies, and generate recommended actions.
+          </p>
+          <button
+            onClick={handleRunAgent}
+            disabled={isRunning}
+            className="px-6 py-3 rounded-full bg-[#007A4D] hover:bg-[#00603C] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-bold shadow-md transition-colors cursor-pointer"
+          >
+            {isRunning ? 'Running...' : 'Run AI Reconciliation'}
+          </button>
+        </div>
       ) : (
         <div className="flex flex-col gap-6 animate-fade-in pb-12">
           {/* ── Error Banner (if API fetch fails) ── */}
@@ -243,22 +410,23 @@ export default function App() {
           )}
 
           {/* ── Compact Collapsible AI Activity Panel ── */}
-          {(isRunning || agentResult || agentStage) && (
-            <AgentTraceInline
-              currentStage={agentStage}
-              isRunning={isRunning}
-              agentResult={agentResult}
-              txCount={dashboardData?.ledger?.transactionCount ?? (transactions.length || 55)}
-              onViewAnomalies={() => {
-                setExceptionsFilter('spend_anomaly');
-                setActiveTab('exceptions');
-              }}
-              onViewActions={() => {
-                setExceptionsFilter('all');
-                setActiveTab('exceptions');
-              }}
-            />
-          )}
+          <AgentTraceInline
+            currentStage={agentStage}
+            isRunning={isRunning}
+            agentResult={agentResult}
+            aiStatus={aiStatus}
+            latestRun={latestRun}
+            onRunAgent={handleRunAgent}
+            txCount={dashboardData?.ledger?.transactionCount ?? transactions.length}
+            onViewAnomalies={() => {
+              setExceptionsFilter('spend_anomaly');
+              setActiveTab('exceptions');
+            }}
+            onViewActions={() => {
+              setExceptionsFilter('all');
+              setActiveTab('exceptions');
+            }}
+          />
 
           {/* ── Empty State for Selected Filter Range with 0 Transactions ── */}
           {dashboardData && dashboardData.recentTransactions?.length === 0 && (
@@ -274,7 +442,7 @@ export default function App() {
               </p>
               <button
                 onClick={() => {
-                  setDateRange({ startDate: '', endDate: '', label: '01 Jul – 04 Aug 2026' });
+                  setDateRange({ startDate: '', endDate: '', label: '' });
                   setStatusFilter('all');
                 }}
                 className="px-4 py-2 rounded-full bg-white border border-amber-300 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition-colors cursor-pointer shadow-xs"
@@ -293,7 +461,7 @@ export default function App() {
                 <QuixoticCardWidget
                   data={dashboardData}
                   summary={summary}
-                  transactions={transactions}
+                  transactions={currentFilteredTransactions}
                   loading={isDashboardLoading}
                   onNavigateLedger={() => setActiveTab('transactions')}
                 />
@@ -302,9 +470,13 @@ export default function App() {
                 <QuixoticBarChartCard
                   data={dashboardData}
                   report={reportData}
+                  transactions={currentFilteredTransactions}
                   interval={interval}
                   onIntervalChange={setIntervalState}
                   onNavigateReports={() => setActiveTab('reports')}
+                  onRunAgent={handleRunAgent}
+                  aiStatus={aiStatus}
+                  isRunning={isRunning}
                   loading={isDashboardLoading}
                 />
 
@@ -312,10 +484,11 @@ export default function App() {
                 <QuixoticBalanceCard
                   data={dashboardData}
                   summary={summary}
+                  transactions={currentFilteredTransactions}
                   onRunAgent={handleRunAgent}
                   isRunning={isRunning}
-                  onToggleChat={() => setChatOpen(true)}
-                  onExport={() => exportCsv({ startDate: dateRange.startDate, endDate: dateRange.endDate, status: 'matched' })}
+                  onViewSettlements={() => setActiveTab('settlements')}
+                  onExport={() => exportCsv({ startDate: dateRange.startDate, endDate: dateRange.endDate, status: 'reconciled' })}
                   loading={isDashboardLoading}
                 />
               </div>
@@ -356,7 +529,7 @@ export default function App() {
           {(activeTab === 'reports' || activeTab === 'reconciliation') && (
             <div className="flex flex-col gap-6 max-w-5xl">
               <ReportPanel
-                hasRunAgent={hasRunAgent}
+                hasRunAgent={aiStatus === 'COMPLETED'}
                 onViewExceptions={() => {
                   setExceptionsFilter('all');
                   setActiveTab('exceptions');
@@ -378,7 +551,7 @@ export default function App() {
                     </p>
                   </div>
                   <button
-                    onClick={() => exportCsv({ startDate: dateRange.startDate, endDate: dateRange.endDate, status: 'matched' })}
+                    onClick={() => exportCsv({ startDate: dateRange.startDate, endDate: dateRange.endDate, status: 'reconciled' })}
                     className="px-4 py-2 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs cursor-pointer"
                   >
                     Export Settlement Ledger CSV
@@ -389,19 +562,19 @@ export default function App() {
                   <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
                     <span className="text-xs text-emerald-800 font-mono block">Verified Settlement</span>
                     <span className="text-2xl font-bold text-[#007A4D] font-mono mt-1 block">
-                      ₹{(dashboardData?.settlement?.verifiedInflow ?? 177700).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{liveSettlementMetrics.verified.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200">
                     <span className="text-xs text-gray-500 font-mono block">Total Inflow</span>
                     <span className="text-2xl font-bold text-gray-900 font-mono mt-1 block">
-                      ₹{(dashboardData?.ledger?.inflow ?? 226500).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{liveSettlementMetrics.totalInflow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                   <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
                     <span className="text-xs text-amber-800 font-mono block">Pending Authorization</span>
                     <span className="text-2xl font-bold text-amber-800 font-mono mt-1 block">
-                      ₹{(dashboardData?.settlement?.pendingSettlement ?? 48800).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      ₹{liveSettlementMetrics.pending.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
@@ -466,7 +639,12 @@ export default function App() {
               transactions={currentFilteredTransactions}
               onApprove={handleApprove}
               onDismiss={handleDismiss}
+              onReset={handleReset}
+              onAnalyzeWithCopilot={handleExplainWithCopilot}
               initialFilter={exceptionsFilter}
+              onRunAgent={handleRunAgent}
+              isRunning={isRunning}
+              aiStatus={aiStatus}
             />
           )}
 
@@ -482,6 +660,8 @@ export default function App() {
             <SettingsPage
               onIngest={handleIngest}
               isIngesting={isIngesting}
+              onUpload={handleUpload}
+              isUploading={isUploading}
               onExport={exportCsv}
               txCount={transactions.length}
             />
@@ -489,8 +669,39 @@ export default function App() {
         </div>
       )}
 
+      {/* ── Run Again Confirmation Dialog ── */}
+      {showRunConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-gray-200">
+            <h3 className="text-base font-bold text-gray-900 mb-2">Re-run AI Reconciliation?</h3>
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              This will re-analyze the transactions for the selected period.
+            </p>
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={() => setShowRunConfirm(false)}
+                className="px-4 py-2 rounded-full text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRunAgent}
+                className="px-4 py-2 rounded-full text-sm font-semibold text-white bg-[#007A4D] hover:bg-[#00603C] transition-colors cursor-pointer"
+              >
+                Run Reconciliation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Slide-in Ledger Copilot Drawer ── */}
-      <SettlementPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      <SettlementPanel
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        contextPrompt={copilotContextPrompt}
+        onClearContext={() => setCopilotContextPrompt(null)}
+      />
 
       {/* ── Rich Transaction Detail & Action Authorization Modal ── */}
       <TransactionDetailModal
@@ -510,6 +721,7 @@ export default function App() {
           setIsDetailModalOpen(false);
           setSelectedTx(null);
         }}
+        onExplainWithCopilot={handleExplainWithCopilot}
       />
     </Layout>
   );

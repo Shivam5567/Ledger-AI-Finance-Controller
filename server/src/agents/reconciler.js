@@ -8,6 +8,11 @@ export function reconcileTransactions(transactions) {
   const seenIncomeInvoices = new Set();
 
   for (const tx of sorted) {
+    // Preserve human authorization decisions: do NOT re-flag approved or dismissed items!
+    if (tx.action_status === 'approved' || tx.action_status === 'dismissed') {
+      continue;
+    }
+
     let flagsUpdated = false;
     const flags = new Set(tx.flags || []);
 

@@ -4,27 +4,91 @@ export default function AgentTraceInline({
   currentStage,
   isRunning,
   agentResult,
-  txCount = 55,
+  aiStatus = 'NOT_RUN',
+  latestRun = null,
+  onRunAgent,
+  txCount = 0,
   onViewAnomalies,
   onViewActions,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showTechDetails, setShowTechDetails] = useState(false);
 
-  if (!currentStage && !agentResult && !isRunning) return null;
+  // Unrun state
+  if (aiStatus === 'NOT_RUN' && !isRunning && !agentResult && !latestRun) {
+    return (
+      <div className="quixotic-card p-4 sm:p-5 animate-fade-in border border-gray-200 bg-white shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500 font-sans">
+                ✦ AI Reconciliation
+              </span>
+              <p className="text-xs text-gray-600 font-mono mt-0.5">
+                AI Reconciliation has not been run for this period.
+              </p>
+            </div>
+          </div>
+          {onRunAgent && (
+            <button
+              onClick={onRunAgent}
+              disabled={isRunning}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
+            >
+              <span>⚡</span>
+              <span>Run AI Reconciliation</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Failed state
+  if (aiStatus === 'FAILED' && !isRunning) {
+    return (
+      <div className="quixotic-card p-4 sm:p-5 animate-fade-in border border-red-200 bg-red-50/50 shadow-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-red-800 font-sans">
+                ✦ AI Reconciliation Failed
+              </span>
+              <p className="text-xs text-red-600 font-mono mt-0.5">
+                Reconciliation failed during execution. Please retry.
+              </p>
+            </div>
+          </div>
+          {onRunAgent && (
+            <button
+              onClick={onRunAgent}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+            >
+              <span>⚠️</span>
+              <span>Retry Reconciliation</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const stageOrder = ['ingest', 'categorizing', 'reconciling', 'anomaly', 'actions', 'complete'];
-  const currentIndex = currentStage ? stageOrder.indexOf(currentStage) : (agentResult ? 5 : -1);
+  const currentIndex = currentStage ? stageOrder.indexOf(currentStage) : (agentResult || latestRun ? 5 : -1);
 
-  const matchedCount = agentResult?.matchedCount ?? (txCount - (agentResult?.issueCount ?? 9));
-  const exceptionCount = agentResult?.issueCount ?? 9;
-  const anomalyCount = agentResult?.anomalies ?? 2;
+  const effectiveTotal = latestRun?.totalCount ?? agentResult?.totalCount ?? txCount;
+  const matchedCount = latestRun?.matchedCount ?? agentResult?.matchedCount ?? (effectiveTotal - (latestRun?.exceptionCount ?? agentResult?.issueCount ?? 0));
+  const exceptionCount = latestRun?.exceptionCount ?? agentResult?.issueCount ?? (effectiveTotal - matchedCount);
+  const anomalyCount = latestRun?.anomalyCount ?? agentResult?.anomalies ?? 0;
+  const completedTime = latestRun?.completedAt ? new Date(latestRun.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
 
   const steps = [
     {
       id: 'ingest',
-      label: `Ingesting ${txCount} transactions...`,
-      doneLabel: `Ingested ${txCount} transactions`,
+      label: `Ingesting ${effectiveTotal} transactions...`,
+      doneLabel: `Ingested ${effectiveTotal} transactions`,
     },
     {
       id: 'categorizing',
@@ -57,7 +121,7 @@ export default function AgentTraceInline({
     {
       id: 'complete',
       label: 'Finalizing reconciliation report...',
-      doneLabel: `Reconciliation verified (${((matchedCount / txCount) * 100).toFixed(1)}% match rate)`,
+      doneLabel: `Reconciliation verified (${((matchedCount / (effectiveTotal || 1)) * 100).toFixed(1)}% match rate)`,
     },
   ];
 
@@ -85,12 +149,18 @@ export default function AgentTraceInline({
                   Step {Math.max(1, currentIndex + 1)} of 5
                 </span>
               )}
+              {!isRunning && (agentResult?.callsUsed !== undefined || latestRun?.calls_used !== undefined) && (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-[#007A4D] font-semibold flex items-center gap-1" title="Groq AI API calls executed during reconciliation">
+                  <span>⚡</span>
+                  <span>{agentResult?.callsUsed ?? latestRun?.calls_used} Groq API {Number(agentResult?.callsUsed ?? latestRun?.calls_used) === 1 ? 'call' : 'calls'}</span>
+                </span>
+              )}
             </div>
 
             <p className="text-xs text-gray-600 font-mono mt-0.5">
               {isRunning
                 ? (steps[currentIndex]?.label || 'Processing pipeline...')
-                : `Completed · ${txCount} transactions · ${matchedCount} matched · ${exceptionCount} require review`}
+                : `Completed${completedTime ? ` at ${completedTime}` : ''} · ${effectiveTotal} transactions · ${matchedCount} matched · ${exceptionCount} require review`}
             </p>
           </div>
         </div>
@@ -195,11 +265,13 @@ export default function AgentTraceInline({
 
             {showTechDetails && (
               <div className="mt-2 p-3 bg-white rounded-xl border border-gray-100 flex flex-col gap-1 text-gray-600 font-mono text-[10px] leading-relaxed">
+                <div>• LLM Provider: Groq Cloud API (`openai/gpt-oss-20b` & `openai/gpt-oss-120b`)</div>
+                <div>• API Calls Executed: {agentResult?.callsUsed ?? latestRun?.calls_used ?? 'Active'} calls</div>
                 <div>• Ingestion: SQLite Indexed WAL Engine (`transactions`)</div>
                 <div>• Categorization: LLM Inference + Category Normalization</div>
                 <div>• Deterministic Reconciler: Exact Invoice Reference & Counterparty Matching</div>
-                <div>• Anomaly Engine: Category Median Spend Threshold (≥ 2.8x baseline)</div>
-                <div>• Action Generator: Contextual Email & Verification Proposal Templates</div>
+                <div>• Anomaly Engine: Category Median Spend Threshold (≥ 2.8x baseline) + LLM Insights</div>
+                <div>• Action Generator: Contextual Email & Verification Proposal LLM Drafts</div>
               </div>
             )}
           </div>

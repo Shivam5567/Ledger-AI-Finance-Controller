@@ -1,10 +1,8 @@
 import fs from 'fs';
 import { parse } from 'csv-parse/sync';
 
-export function parseCsvFile(filePath) {
-  const fileContent = fs.readFileSync(filePath, 'utf-8');
-  
-  const records = parse(fileContent, {
+export function parseCsvString(csvContent) {
+  const records = parse(csvContent, {
     columns: true,
     skip_empty_lines: true,
     trim: true,
@@ -28,4 +26,9 @@ export function parseCsvFile(filePath) {
   }
 
   return parsedRecords;
+}
+
+export function parseCsvFile(filePath) {
+  const fileContent = fs.readFileSync(filePath, 'utf-8');
+  return parseCsvString(fileContent);
 }

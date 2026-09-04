@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-export default function SettingsPage({ onIngest, isIngesting, onExport, txCount = 0 }) {
+export default function SettingsPage({ onIngest, isIngesting, onUpload, isUploading, onExport, txCount = 0 }) {
   const [rules, setRules] = useState([]);
   const [loadingRules, setLoadingRules] = useState(true);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const fileInputRef = useRef(null);
 
   const fetchRules = () => {
     setLoadingRules(true);
-    fetch('/api/rules')
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/rules`)
       .then(r => r.json())
       .then(data => {
         setRules(Array.isArray(data) ? data : []);
@@ -20,8 +22,26 @@ export default function SettingsPage({ onIngest, isIngesting, onExport, txCount 
   }, []);
 
   const handleDeleteRule = async (id) => {
-    await fetch(`/api/rules/${id}`, { method: 'DELETE' });
+    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/rules/${id}`, { method: 'DELETE' });
     setRules(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        setUploadStatus('Uploading...');
+        await onUpload(event.target.result);
+        setUploadStatus('Upload successful!');
+        setTimeout(() => setUploadStatus(''), 3000);
+      } catch (err) {
+        setUploadStatus('Upload failed: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -124,15 +144,31 @@ export default function SettingsPage({ onIngest, isIngesting, onExport, txCount 
       <div className="quixotic-card p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
           <span>💾</span>
-          <span>Ledger Data Ingestion</span>
+          <span>Ledger Data Management</span>
         </h3>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="px-5 py-2.5 rounded-full text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+          >
+            {isUploading ? 'Uploading…' : '↑ Upload CSV File'}
+          </button>
           <button
             onClick={onIngest}
             disabled={isIngesting}
             className="px-5 py-2.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
-            {isIngesting ? 'Reloading…' : 'Reload sample_transactions.csv (55 Rows)'}
+            {isIngesting ? 'Reloading…' : 'Reload Sample Transactions'}
           </button>
           {onExport && (
             <button
@@ -143,6 +179,13 @@ export default function SettingsPage({ onIngest, isIngesting, onExport, txCount 
             </button>
           )}
         </div>
+
+        {uploadStatus && (
+          <p className={`text-xs mt-3 font-mono ${uploadStatus.includes('failed') ? 'text-red-600' : 'text-[#007A4D]'}`}>
+            {uploadStatus}
+          </p>
+        )}
+
         <p className="text-[11px] text-gray-400 mt-3 font-mono">
           Database: SQLite (WAL Mode) · {txCount} transactions currently indexed
         </p>

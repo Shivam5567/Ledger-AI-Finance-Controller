@@ -118,9 +118,10 @@ function executeTool(name, args) {
   if (name === 'get_settlement_summary') {
     const all = getAllTransactions();
     const income = all.filter(t => t.type === 'income');
-    const verified = income.filter(t => t.match_status !== 'exception' && (!t.flags || t.flags.length === 0));
+    const isUnresolvedExc = (t) => (t.match_status === 'exception' || (t.flags && t.flags.length > 0)) && t.action_status !== 'approved' && t.action_status !== 'dismissed';
+    const verified = income.filter(t => !isUnresolvedExc(t));
     const verifiedTotal = verified.reduce((s, t) => s + t.amount, 0);
-    const exceptions = all.filter(t => t.match_status === 'exception' || (t.flags && t.flags.length > 0));
+    const exceptions = all.filter(isUnresolvedExc);
     const exposure = exceptions.reduce((s, t) => s + Math.abs(t.amount), 0);
     return {
       verifiedInflow: fmt(verifiedTotal),
@@ -349,6 +350,9 @@ Be concise and factual. If the question isn't about finance, politely redirect.`
     } else {
       console.error('[ChatAgent] LLM error:', error.message);
     }
+    try {
+      res.write(`data: ${JSON.stringify({ type: 'error', message: error.message || 'Service temporarily unavailable' })}\n\n`);
+    } catch (_) {}
     await sendFallback(message);
   }
 }

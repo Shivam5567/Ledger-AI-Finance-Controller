@@ -1,12 +1,14 @@
 import { updateTransaction, isDismissed } from '../db.js';
 import { callLLM, extractText, safeParseJSON, hasValidApiKey } from '../utils/llm.js';
 
-export async function detectAnomalies(transactions) {
+export async function detectAnomalies(transactions, { force = false } = {}) {
   console.log(`[Anomaly] Running anomaly detection on ${transactions.length} transactions...`);
 
   // ── Flag exact duplicates (same description + amount within 5 days) ────────
   for (let i = 0; i < transactions.length; i++) {
     const tx1   = transactions[i];
+    if (tx1.action_status === 'approved' || tx1.action_status === 'dismissed') continue;
+
     const date1 = new Date(tx1.date).getTime();
     let isDuplicate = false;
 
@@ -49,6 +51,7 @@ export async function detectAnomalies(transactions) {
   // ── Flag statistical anomalies (>=2.8× category median) ───────────────────
   const anomalousTxs = [];
   for (const tx of transactions) {
+    if (tx.action_status === 'approved' || tx.action_status === 'dismissed') continue;
     if (tx.type !== 'expense' || !tx.category || tx.category === 'other') continue;
 
     const catTxs = transactions.filter(t => t.type === 'expense' && t.category === tx.category);
@@ -81,12 +84,12 @@ export async function detectAnomalies(transactions) {
     }
   }
 
-  // ── Batch AI explanations for all anomalies without one ──────────────────
+  // ── Batch AI explanations for all anomalies ──────────────────
   if (anomalousTxs.length > 0) {
-    const needsExplanation = anomalousTxs.filter(t => !t.anomaly_explanation);
+    const needsExplanation = force ? anomalousTxs : anomalousTxs.filter(t => !t.anomaly_explanation);
 
     if (needsExplanation.length > 0 && hasValidApiKey()) {
-      console.log(`[Anomaly] Running batched explanation for ${needsExplanation.length} flagged items (1 API call)...`);
+      console.log(`[Anomaly] Running batched explanation for ${needsExplanation.length} flagged items with Groq LLM (1 API call)...`);
 
       const itemsList = JSON.stringify(needsExplanation.map(t => ({
         id:          t.id,
@@ -96,16 +99,16 @@ export async function detectAnomalies(transactions) {
       })), null, 2);
 
       const prompt = `Write a one-line plain-English explanation for each flagged transaction.
-Be specific — include the actual amount and the typical baseline it's being compared to.
+Be specific — include the actual amount in Indian Rupees (₹) and the typical baseline it's being compared to.
 
 Flagged transactions:
 ${itemsList}
 
 Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
-[{"id": 5, "explanation": "This AWS charge is 3.2x your typical monthly baseline of ₹2,400."}]`;
+[{"id": 5, "explanation": "This AWS charge of ₹8,900 is 3.2x your typical monthly baseline of ₹2,400."}]`;
 
       try {
-        const response = await callLLM(prompt, { model: 'smart' });
+        const response = await callLLM(prompt, { model: 'smart', maxTokens: 800 });
         const raw      = extractText(response);
         const results  = safeParseJSON(raw);
         if (Array.isArray(results)) {

@@ -47,8 +47,8 @@ Ledger AI — Automated Finance Controller`;
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
-export async function generateActions(transactions) {
-  const flagged = transactions.filter(t => t.flags && t.flags.length > 0);
+export async function generateActions(transactions, { force = false } = {}) {
+  const flagged = transactions.filter(t => (t.flags && t.flags.length > 0) && t.action_status !== 'approved' && t.action_status !== 'dismissed');
   if (flagged.length === 0) return transactions;
 
   // Assign action_type and pre-compute fallback drafts
@@ -88,12 +88,14 @@ Ledger AI — Automated Anomaly Detection`;
   }
 
   // ── Batch AI draft generation ────────────────────────────────────────────
-  const needsDraft = flagged.filter(
-    t => (t.action_type === 'reminder_email' || t.action_type === 'refund_request') && !t.action_draft
-  );
+  const needsDraft = force
+    ? flagged.filter(t => t.action_type === 'reminder_email' || t.action_type === 'refund_request')
+    : flagged.filter(
+        t => (t.action_type === 'reminder_email' || t.action_type === 'refund_request') && !t.action_draft
+      );
 
   if (needsDraft.length > 0 && hasValidApiKey()) {
-    console.log(`[ActionAgent] Running batched action drafts for ${needsDraft.length} flagged items (1 API call)...`);
+    console.log(`[ActionAgent] Running batched action drafts for ${needsDraft.length} flagged items with Groq LLM (1 API call)...`);
 
     const promptList = JSON.stringify(needsDraft.map(t => ({
       id:          t.id,
@@ -111,7 +113,7 @@ Use the flag_type to determine the draft format:
 - unmatched_invoice → payment reminder email (to client)
 
 Include the actual description, amount (formatted in ₹ INR), and date in every draft.
-Make it sound like a real finance team wrote it, not a template. Always use Indian Rupees (₹).
+Make it sound like a real finance team wrote it. Keep each draft concise and professional (2-4 sentences). Always use Indian Rupees (₹).
 
 Flagged transactions:
 ${promptList}
@@ -120,7 +122,7 @@ Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
 [{"id": 3, "draft": "Subject: Duplicate Payment — ...\\n\\nHi Team,\\n..."}]`;
 
     try {
-      const response = await callLLM(prompt, { model: 'smart' });
+      const response = await callLLM(prompt, { model: 'smart', maxTokens: 3500 });
       const raw      = extractText(response);
       const results  = safeParseJSON(raw);
       if (Array.isArray(results)) {

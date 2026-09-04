@@ -12,231 +12,206 @@ import {
   SettingsGearIcon,
 } from './Icons';
 
-// ── 1. Top Navigation Bar (Single Clear Navigation Model) ───────────────
+// ── 1. Top Navigation Bar (Single Responsive Navigation Model) ──────────
 export function QuixoticTopNav({
   activeTab,
   onSelectTab,
   exceptionCount = 0,
   onToggleChat,
 }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'transactions', label: 'Ledger' },
-    { id: 'reconciliation', label: 'Reconciliation' },
-    { id: 'settlements', label: 'Settlements' },
-    { id: 'exceptions', label: 'Exceptions', badge: exceptionCount },
-    { id: 'reports', label: 'Reports' },
-    { id: 'forecast', label: 'Forecast' },
-    { id: 'settings', label: 'Settings' },
+    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'transactions', label: 'Ledger', icon: '📋' },
+    { id: 'reconciliation', label: 'Reconciliation', icon: '⚖️' },
+    { id: 'settlements', label: 'Settlements', icon: '💳' },
+    { id: 'exceptions', label: 'Exceptions', icon: '🛡️', badge: exceptionCount },
+    { id: 'reports', label: 'Reports', icon: '📈' },
+    { id: 'forecast', label: 'Forecast', icon: '📉' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
+  const handleTabClick = (tabId) => {
+    onSelectTab(tabId);
+    setMobileMenuOpen(false);
+  };
+
   return (
-    <header className="w-full flex items-center justify-between py-4 px-2 sm:px-6">
-      {/* Left: Brand Logo */}
-      <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => onSelectTab('dashboard')}>
-        <LogoIcon className="w-8 h-8" />
-        <span className="text-xl font-bold tracking-tight text-gray-900 flex items-center">
-          Ledger <span className="text-[#007A4D] ml-1">AI</span>
-        </span>
-      </div>
+    <>
+      <header className="w-full flex items-center justify-between py-4 px-2 sm:px-4 md:px-6">
+        {/* Left: Hamburger (mobile) & Brand Logo */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile Hamburger Button */}
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="md:hidden p-2 -ml-1.5 rounded-xl text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+            aria-label="Open navigation menu"
+          >
+            <span className="text-xl leading-none">☰</span>
+          </button>
 
-      {/* Center: Rounded Pill Navigation Menu */}
-      <nav className="hidden xl:flex items-center gap-1 bg-white border border-gray-200/80 rounded-full px-2 py-1 shadow-xs">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id || (tab.id === 'reconciliation' && activeTab === 'reports');
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onSelectTab(tab.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-                isActive
-                  ? 'bg-gray-100/90 text-gray-900 font-semibold shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-              }`}
-            >
-              <span>{tab.label}</span>
-              {tab.badge > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#DC2626] text-white text-[10px] flex items-center justify-center font-bold">
-                  {tab.badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </nav>
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => onSelectTab('dashboard')}
+          >
+            <LogoIcon className="w-7 h-7 sm:w-8 sm:h-8" />
+            <span className="text-lg sm:text-xl font-bold tracking-tight text-gray-900 flex items-center">
+              Ledger <span className="text-[#007A4D] ml-1">AI</span>
+            </span>
+          </div>
+        </div>
 
-      {/* Right: Ledger Copilot Button, Search, Notification Bell, User Avatar */}
-      <div className="flex items-center gap-2.5">
-        <button
-          onClick={onToggleChat}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
-        >
-          <span>💬</span>
-          <span className="hidden sm:inline">Ledger Copilot</span>
-        </button>
+        {/* Center: Rounded Pill Navigation Menu (Tablet & Desktop: >= 768px) */}
+        <nav className="hidden md:flex items-center gap-0.5 lg:gap-1 bg-white border border-gray-200/80 rounded-full px-1.5 lg:px-2 py-1 shadow-xs">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id || (tab.id === 'reconciliation' && activeTab === 'reports');
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onSelectTab(tab.id)}
+                className={`px-2.5 lg:px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-100/90 text-gray-900 font-semibold shadow-xs'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.badge > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-[#DC2626] text-white text-[10px] flex items-center justify-center font-bold">
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
 
-        <button
-          onClick={onToggleChat}
-          title="Search / Ledger Copilot"
-          className="w-9 h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors shadow-xs cursor-pointer"
-        >
-          <SearchIcon className="w-4 h-4" />
-        </button>
+        {/* Right: Single Primary Copilot Button, Notifications, Avatar */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          {/* Exactly ONE Primary Ledger Copilot Entry Point */}
+          <button
+            onClick={onToggleChat}
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
+          >
+            <span>💬</span>
+            <span className="hidden sm:inline">Settlement Q&A</span>
+          </button>
 
-        <button
-          onClick={() => onSelectTab('exceptions')}
-          title="Notifications & Exceptions"
-          className="w-9 h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors shadow-xs relative cursor-pointer"
-        >
-          <BellIcon className="w-4 h-4" />
-          {exceptionCount > 0 && (
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#DC2626]" />
-          )}
-        </button>
+          <button
+            onClick={() => onSelectTab('exceptions')}
+            title="Notifications & Exceptions"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors shadow-xs relative cursor-pointer"
+          >
+            <BellIcon className="w-4 h-4" />
+            {exceptionCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#DC2626]" />
+            )}
+          </button>
 
-        {/* User profile avatar */}
-        <div className="flex items-center gap-2 pl-1 cursor-pointer" onClick={() => onSelectTab('settings')}>
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 p-[2px] shadow-xs">
-            <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold">
-              LA
+          {/* User profile avatar */}
+          <div
+            className="flex items-center gap-2 pl-0.5 cursor-pointer"
+            onClick={() => onSelectTab('settings')}
+            title="Profile & Settings"
+          >
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 p-[2px] shadow-xs">
+              <div className="w-full h-full rounded-full bg-gray-900 flex items-center justify-center text-white text-xs font-bold">
+                LA
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+
+      {/* ── Mobile Slide-out Drawer (< 768px) ── */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity animate-fade-in"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Drawer Menu */}
+          <div className="relative w-72 max-w-[80vw] bg-white h-full shadow-2xl p-5 flex flex-col justify-between z-10 animate-slide-in-left">
+            <div>
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-gray-100">
+                <div className="flex items-center gap-2" onClick={() => handleTabClick('dashboard')}>
+                  <LogoIcon className="w-7 h-7" />
+                  <span className="text-lg font-bold text-gray-900">
+                    Ledger <span className="text-[#007A4D]">AI</span>
+                  </span>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 hover:text-gray-900 transition-colors cursor-pointer text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Navigation Items (8 Items) */}
+              <div className="flex flex-col gap-1">
+                {tabs.map((tab) => {
+                  const isActive = activeTab === tab.id || (tab.id === 'reconciliation' && activeTab === 'reports');
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabClick(tab.id)}
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all flex items-center justify-between cursor-pointer ${
+                        isActive
+                          ? 'bg-emerald-50 text-[#007A4D] font-bold'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm">{tab.icon}</span>
+                        <span>{tab.label}</span>
+                      </div>
+                      {tab.badge > 0 && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#DC2626] text-white text-[10px] font-bold">
+                          {tab.badge}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Drawer Footer with Copilot */}
+            <div className="pt-4 border-t border-gray-100">
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  if (onToggleChat) onToggleChat();
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+              >
+                <span>💬</span>
+                <span>Settlement Q&A</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
-// ── 2. Floating Left Pill Dock (Navigation-Only Model) ─────────────────
-export function QuixoticDock({ activeTab, onSelectTab, onToggleChat, exceptionCount = 0 }) {
-  return (
-    <aside className="hidden lg:flex flex-col gap-3 py-1 pr-3 select-none w-16">
-      {/* Pod 1: Core Financial Operations */}
-      <div className="pill-dock p-1.5 flex flex-col items-center gap-1.5">
-        <button
-          onClick={() => onSelectTab('dashboard')}
-          title="Dashboard Overview"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'dashboard'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <DashboardGridIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Home</span>
-        </button>
-
-        <button
-          onClick={() => onSelectTab('transactions')}
-          title="Ledger Transactions"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'transactions'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <TableListIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Ledger</span>
-        </button>
-
-        <button
-          onClick={() => onSelectTab('reconciliation')}
-          title="Reconciliation Center"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'reconciliation' || activeTab === 'reports'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <BarChartIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Reconcile</span>
-        </button>
-
-        <button
-          onClick={() => onSelectTab('settlements')}
-          title="Settlement Funds & Trajectory"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'settlements'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <WalletIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Settlement</span>
-        </button>
-      </div>
-
-      {/* Pod 2: Exceptions, Intelligence & Forecast */}
-      <div className="pill-dock p-1.5 flex flex-col items-center gap-1.5">
-        <button
-          onClick={() => onSelectTab('exceptions')}
-          title="Exceptions & Flagged Items"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer relative ${
-            activeTab === 'exceptions'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <div className="relative">
-            <ShieldAlertIcon className="w-4 h-4" />
-            {exceptionCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#DC2626]" />
-            )}
-          </div>
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Alerts</span>
-        </button>
-
-        <button
-          onClick={() => onSelectTab('forecast')}
-          title="Spend Forecast & Wallets"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'forecast'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <BarChartIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Forecast</span>
-        </button>
-
-        <button
-          onClick={onToggleChat}
-          title="Ledger Copilot Q&A"
-          className="w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-[#007A4D] hover:bg-gray-100 transition-all cursor-pointer relative"
-        >
-          <div className="relative">
-            <ChatBubbleIcon className="w-4 h-4" />
-            <span className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-[#007A4D]" />
-          </div>
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Copilot</span>
-        </button>
-      </div>
-
-      {/* Pod 3: Settings */}
-      <div className="pill-dock p-1.5 flex flex-col items-center gap-1.5">
-        <button
-          onClick={() => onSelectTab('settings')}
-          title="System Settings"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'settings'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <SettingsGearIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Config</span>
-        </button>
-      </div>
-    </aside>
-  );
+// ── 2. Floating Left Pill Dock (Deprecated - No-op for backward compatibility) ─
+export function QuixoticDock() {
+  return null;
 }
 
 // ── 3. Header Greeting Row (Separate Date Range & Status Filters) ──────
 export function QuixoticHeaderRow({
   onRunAgent,
   isRunning,
+  aiStatus = 'NOT_RUN',
   txCount = 55,
-  onToggleChat,
   dateRange = { startDate: '', endDate: '', label: '01 Jul – 04 Aug 2026' },
   onDateRangeChange,
   statusFilter = 'all',
@@ -497,18 +472,7 @@ export function QuixoticHeaderRow({
           )}
         </div>
 
-        {/* Settlement / Ledger Copilot Header Button */}
-        {onToggleChat && (
-          <button
-            onClick={onToggleChat}
-            className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200/90 rounded-full px-3.5 py-2 text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
-          >
-            <span>💬</span>
-            <span>Ledger Copilot</span>
-          </button>
-        )}
-
-        {/* Action Button: Run AI Reconciliation */}
+        {/* Action Button: State-driven AI Reconciliation */}
         <button
           onClick={onRunAgent}
           disabled={isRunning}
@@ -517,7 +481,17 @@ export function QuixoticHeaderRow({
           {isRunning ? (
             <>
               <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Reconciling…</span>
+              <span>Running Reconciliation…</span>
+            </>
+          ) : aiStatus === 'COMPLETED' ? (
+            <>
+              <span className="text-white font-bold">⚡</span>
+              <span>Run Again</span>
+            </>
+          ) : aiStatus === 'FAILED' ? (
+            <>
+              <span className="text-white font-bold">⚠️</span>
+              <span>Retry Reconciliation</span>
             </>
           ) : (
             <>

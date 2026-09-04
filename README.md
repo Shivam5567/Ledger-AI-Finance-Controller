@@ -1,11 +1,11 @@
 # ⚡ Ledger AI — Finance Controller Agent
 
-An AI-powered finance dashboard that ingests transactions, runs them through an intelligent agent pipeline (categorization, reconciliation, anomaly detection), and provides a chat Q&A interface — all powered by Google Gemini.
+An AI-powered finance dashboard that ingests transactions, runs them through an intelligent agent pipeline (categorization, reconciliation, anomaly detection), and provides a chat Q&A interface — all powered by Groq Cloud API.
 
 ## Features
 
 - **📊 Transaction Ingestion** — Load CSV data and view raw transaction tables
-- **🏷️ AI Categorization** — Automatically categorize transactions using Gemini AI
+- **🏷️ AI Categorization** — Automatically categorize transactions using Groq LLM
 - **🔍 Invoice Reconciliation** — Match income against invoice references, flag mismatches
 - **⚠️ Anomaly Detection** — Flag spending spikes (>2x category average) and duplicate payments
 - **🤖 Action Agent** — Auto-draft reminder emails, refund requests, and anomaly explanations
@@ -15,7 +15,7 @@ An AI-powered finance dashboard that ingests transactions, runs them through an 
 
 ### Prerequisites
 - Node.js 18+
-- A [Google Gemini API key](https://aistudio.google.com/apikey)
+- A [Groq API key](https://console.groq.com/keys)
 
 ### Setup
 
@@ -26,8 +26,8 @@ cd server && npm install
 cd ../client && npm install
 cd ..
 
-# 2. Set your Gemini API key
-# Edit server/.env and set GEMINI_API_KEY=your_key_here
+# 2. Set your Groq API key
+# Edit server/.env and set GROQ_API_KEY=your_key_here
 
 # 3. Run both server and client
 npm run dev
@@ -37,8 +37,8 @@ The app will be available at **http://localhost:5173**
 
 ### Demo Script
 
-1. **Load Data** — Click "📂 Load Transactions" to ingest the sample CSV
-2. **Run Agent** — Click "🚀 Run AI Agent" and watch categorization + flags populate live
+1. **Load Data** — Click "📂 Load Transactions" to ingest the sample CSV (55 transactions)
+2. **Run Agent** — Click "🚀 Run AI Reconciliation" and watch categorization + flags populate live
 3. **Review Flags** — Click on flagged transactions to see AI-generated action drafts
 4. **Approve Actions** — Click "Approve" to resolve flagged items
 5. **Chat** — Open the chat panel and ask questions like:
@@ -49,19 +49,19 @@ The app will be available at **http://localhost:5173**
 ## Architecture
 
 ```
-├── sample_transactions.csv    # 28 transactions with intentional anomalies
-├── server/                    # Express + SQLite + Gemini API
+├── sample_transactions.csv    # 55 transactions with intentional anomalies
+├── server/                    # Express + SQLite + Groq API
 │   ├── src/
 │   │   ├── agents/            # AI agent modules
-│   │   │   ├── categorizer.js # Batch Gemini categorization
+│   │   │   ├── categorizer.js # Batch Groq LLM categorization
 │   │   │   ├── reconciler.js  # Invoice matching (pure logic)
 │   │   │   ├── anomaly.js     # Anomaly detection + LLM explanations
 │   │   │   ├── actionAgent.js # Draft emails/notes per flag
 │   │   │   └── chatAgent.js   # Tool-use Q&A with function calling
 │   │   ├── routes/            # Express API endpoints
-│   │   ├── utils/             # Gemini client, CSV parser
+│   │   ├── utils/             # Groq client, CSV parser
 │   │   └── db.js              # SQLite with better-sqlite3
-│   └── .env                   # GEMINI_API_KEY
+│   └── .env                   # GROQ_API_KEY
 ├── client/                    # React + Vite + Tailwind v4
 │   └── src/
 │       ├── components/        # Dashboard UI components
@@ -76,20 +76,21 @@ The app will be available at **http://localhost:5173**
 |-------|-----------|
 | Backend | Node.js, Express |
 | Database | SQLite (better-sqlite3) |
-| AI | Google Gemini 2.0 Flash |
+| AI | Groq Cloud API (OpenAI GPT-OSS models) |
 | Frontend | React 19, Vite |
 | Styling | Tailwind CSS v4 |
 | Design | Dark Glassmorphism |
+
 ## Accuracy & Transparency
 
 Ledger does not cherry-pick results. After every agent run, it reports:
 
 | Metric | Value |
 |--------|-------|
-| Transactions processed | 28 |
-| Successfully matched | ~23 (82.1%) |
-| Exceptions found | ~5 (17.9%) |
-| Exception types | Missing invoice (3), Duplicate payment (2), Spend anomaly (2) |
+| Transactions processed | 55 |
+| Successfully matched | 49 (89.1%) |
+| Exceptions found | 6 (10.9%) |
+| Exception types | Missing invoice, Duplicate ref, Duplicate payment, Spend anomaly |
 
 Every exception is listed with a specific, plain-English reason why it could not be resolved automatically — not a generic error message.
 
@@ -102,7 +103,7 @@ Ledger AI is designed to connect directly to **Razorpay's Payments API** and **P
 The agent pipeline (categorization, reconciliation, anomaly detection, action drafting) is **API-agnostic** and ready for live data. Integration would involve:
 
 1. **Webhook ingestion** — receive `payment.captured`, `refund.processed`, and `payout.processed` events from Razorpay in real-time
-2. **Automatic categorization** — new transactions run through the Gemini AI pipeline immediately on receipt
+2. **Automatic categorization** — new transactions run through the Groq AI pipeline immediately on receipt
 3. **Live reconciliation** — match Razorpay order IDs directly to invoice references
 4. **Proactive alerts** — push anomaly notifications before end-of-day review
 

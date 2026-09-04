@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 async function fetchJson(url, options) {
-  const res = await fetch(url, options);
+  const res = await fetch(`${API_BASE}${url}`, options);
   if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
   return res.json();
 }
@@ -22,7 +24,7 @@ export function useTransactions() {
     }
   }, []);
 
-  return { transactions, loading, refetch };
+  return { transactions, setTransactions, loading, refetch };
 }
 
 export function useSummary() {
@@ -63,13 +65,40 @@ export function useIngest() {
   return { ingest, loading };
 }
 
+export function useUpload() {
+  const [loading, setLoading] = useState(false);
+
+  const upload = async (csvContent) => {
+    setLoading(true);
+    try {
+      const res = await fetchJson('/api/transactions/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csvContent }),
+      });
+      return res;
+    } catch (err) {
+      console.error('Failed to upload:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { upload, loading };
+}
+
 export function useRunAgent(onProgress) {
   const [isRunning, setIsRunning] = useState(false);
 
-  const runAgent = async () => {
+  const runAgent = async (params = {}) => {
     setIsRunning(true);
     try {
-      const res = await fetch('/api/agent/run', { method: 'POST' });
+      const res = await fetch(`${API_BASE}/api/agent/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params),
+      });
       const reader  = res.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
@@ -116,7 +145,7 @@ export function useChat() {
     setMessages(prev => [...prev, { id: aiMsgId, role: 'ai', content: '' }]);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
@@ -223,6 +252,10 @@ export function useDashboard({ startDate, endDate, interval = 'weekly', status =
     }
   }, [startDate, endDate, interval, status]);
 
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
   return { data, loading, error, lastSyncedAt, refetch };
 }
 
@@ -235,7 +268,7 @@ export function useExport() {
 
     const qs = params.toString();
     const link = document.createElement('a');
-    link.href = `/api/export${qs ? `?${qs}` : ''}`;
+    link.href = `${API_BASE}/api/export${qs ? `?${qs}` : ''}`;
     link.download = `ledger-export${status ? `-${status}` : ''}.csv`;
     link.click();
   };

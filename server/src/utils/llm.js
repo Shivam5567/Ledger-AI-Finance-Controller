@@ -1,5 +1,4 @@
 import Groq from 'groq-sdk';
-import 'dotenv/config';
 
 let _groq = null;
 
@@ -12,34 +11,27 @@ function getClient() {
 
 // ---------------------------------------------------------------------------
 // Preferred candidate lists — tried in order, first that actually works wins
-// ---------------------------------------------------------------------------
+// Note: openai/gpt-oss-20b and openai/gpt-oss-120b are verified active models on this key
 const CANDIDATES = {
   fast: [
     'openai/gpt-oss-20b',
-    'qwen/qwen3.6-27b',
-    'qwen/qwen3.8-27b',
-    'allam-2-7b',
+    'openai/gpt-oss-120b',
   ],
   smart: [
     'openai/gpt-oss-120b',
-    'qwen/qwen3.8-27b',
     'openai/gpt-oss-20b',
-    'qwen/qwen3.6-27b',
   ],
 };
 
 // Resolved after first probe call — cached for the process lifetime
 let _resolvedModels = null;
 
-// ---------------------------------------------------------------------------
 // Probe a model with a minimal real call to confirm it's actually usable
-// Returns true if the call succeeds (even with empty content)
-// ---------------------------------------------------------------------------
 async function probeModel(modelId) {
   try {
     await getClient().chat.completions.create({
       model:      modelId,
-      max_tokens: 5,
+      max_tokens: 30,
       messages:   [{ role: 'user', content: 'hi' }],
     });
     return true;

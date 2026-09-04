@@ -97,7 +97,6 @@ export default function TransactionTable({
             <tr className="text-gray-400 font-medium border-b border-gray-100 pb-2">
               <th className="pb-3 font-medium">Name & Reference</th>
               <th className="pb-3 font-medium">Date</th>
-              <th className="pb-3 font-medium">Time</th>
               <th className="pb-3 font-medium">Category</th>
               <th className="pb-3 font-medium">Status</th>
               <th className="pb-3 font-medium text-right">Amount</th>
@@ -106,7 +105,7 @@ export default function TransactionTable({
           <tbody className="divide-y divide-gray-50">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-12 text-center text-gray-400">
+                <td colSpan={5} className="py-12 text-center text-gray-400">
                   No transactions found matching your criteria.
                 </td>
               </tr>
@@ -131,7 +130,7 @@ export default function TransactionTable({
                         <VendorBadge name={tx.description} category={tx.category} />
                         <div>
                           <div className="font-semibold text-gray-900 text-[13px]">{tx.description}</div>
-                          {tx.invoice_ref && (
+                          {tx.type === 'income' && tx.invoice_ref && (
                             <div className="text-[11px] font-mono text-gray-400">
                               Ref: {tx.invoice_ref}
                             </div>
@@ -142,11 +141,6 @@ export default function TransactionTable({
                       {/* Date */}
                       <td className="py-3.5 text-gray-600 font-medium whitespace-nowrap">
                         {tx.date}
-                      </td>
-
-                      {/* Time */}
-                      <td className="py-3.5 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                        10:30 PM
                       </td>
 
                       {/* Category */}
@@ -189,7 +183,7 @@ export default function TransactionTable({
                     {/* Expanded Action Draft */}
                     {isExpanded && (
                       <tr className="bg-gray-50/90">
-                        <td colSpan={6} className="p-4 rounded-xl border border-gray-200">
+                        <td colSpan={5} className="p-4 rounded-xl border border-gray-200">
                           <div className="flex flex-col gap-2.5 pl-3 border-l-2 border-[#007A4D]">
                             <div className="text-xs font-bold text-red-600 flex items-center gap-1.5">
                               <span>⚠</span>

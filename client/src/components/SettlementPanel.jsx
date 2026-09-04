@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useChat } from '../hooks/useApi';
 
-export default function SettlementPanel({ isOpen, onClose }) {
+export default function SettlementPanel({ isOpen, onClose, contextPrompt, onClearContext }) {
   const { messages, sendMessage, isTyping, toolState } = useChat();
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
+  const lastProcessedContextRef = useRef(null);
 
   const suggestedQuestions = [
     'Net position & summary?',
@@ -12,6 +13,14 @@ export default function SettlementPanel({ isOpen, onClose }) {
     'How much did we spend on payroll?',
     'What are the largest anomalies?',
   ];
+
+  useEffect(() => {
+    if (isOpen && contextPrompt && lastProcessedContextRef.current !== contextPrompt) {
+      lastProcessedContextRef.current = contextPrompt;
+      sendMessage(contextPrompt);
+      if (onClearContext) onClearContext();
+    }
+  }, [isOpen, contextPrompt, sendMessage, onClearContext]);
 
   useEffect(() => {
     if (isOpen) {
@@ -42,7 +51,7 @@ export default function SettlementPanel({ isOpen, onClose }) {
             💬
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Ledger Copilot</h3>
+            <h3 className="text-sm font-bold text-gray-900">Settlement Q&A</h3>
             <p className="text-[11px] text-gray-400">Autonomous Financial Intelligence</p>
           </div>
         </div>
@@ -65,7 +74,7 @@ export default function SettlementPanel({ isOpen, onClose }) {
               Ask about your ledger
             </h4>
             <p className="text-xs text-gray-500 mb-6 max-w-[260px] leading-relaxed">
-              Query live totals, duplicate records, category spend, and reconciliations in natural language.
+              Query live totals, settlement status, and reconciliation answers in natural language.
             </p>
 
             <div className="w-full flex flex-col gap-2">

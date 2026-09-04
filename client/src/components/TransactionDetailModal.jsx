@@ -7,6 +7,7 @@ export default function TransactionDetailModal({
   onClose,
   onApprove,
   onDismiss,
+  onExplainWithCopilot,
 }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -243,36 +244,51 @@ export default function TransactionDetailModal({
         )}
 
         {/* Footer Actions (Explicit Human Authorization Required) */}
-        <div className="pt-3 border-t border-gray-100 flex items-center justify-end gap-2.5">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
-          >
-            Close
-          </button>
-
-          {!isResolved && isException && (
-            <>
-              <button
-                onClick={async () => {
-                  if (onDismiss) await onDismiss(transaction.id);
-                  onClose();
-                }}
-                className="px-4 py-2 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
-              >
-                Dismiss Flag
-              </button>
-              <button
-                onClick={async () => {
-                  if (onApprove) await onApprove(transaction.id);
-                  onClose();
-                }}
-                className="px-5 py-2 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#00603C] text-white shadow-xs hover:shadow transition-all cursor-pointer"
-              >
-                ✓ Authorize & Execute
-              </button>
-            </>
+        <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2.5">
+          {onExplainWithCopilot && (
+            <button
+              onClick={() => {
+                onExplainWithCopilot(transaction);
+                onClose();
+              }}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200/80 transition-colors cursor-pointer"
+            >
+              <span>💬</span>
+              <span>Explain with Copilot</span>
+            </button>
           )}
+
+          <div className="flex items-center gap-2.5 ml-auto">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-full text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+
+            {!isResolved && isException && (
+              <>
+                <button
+                  onClick={async () => {
+                    if (onDismiss) await onDismiss(transaction.id);
+                    onClose();
+                  }}
+                  className="px-4 py-2 rounded-full text-xs font-semibold bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  Dismiss Flag
+                </button>
+                <button
+                  onClick={async () => {
+                    if (onApprove) await onApprove(transaction.id);
+                    onClose();
+                  }}
+                  className="px-5 py-2 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#00603C] text-white shadow-xs hover:shadow transition-all cursor-pointer"
+                >
+                  ✓ Authorize & Execute
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

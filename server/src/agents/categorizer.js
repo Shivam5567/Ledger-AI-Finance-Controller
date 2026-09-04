@@ -24,11 +24,18 @@ function fallbackCategorize(description, type) {
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
-export async function categorizeTransactions(transactions) {
+export async function categorizeTransactions(transactions, { force = false } = {}) {
   if (!transactions || transactions.length === 0) return [];
 
-  // Protection B: Skip already-processed transactions
-  const needsCategorization = transactions.filter(t => !t.category || t.category === null);
+  // Identify transactions needing categorization
+  let needsCategorization = transactions.filter(t => !t.category || t.category === null);
+
+  // If force is true and all transactions are already categorized,
+  // select a batch of transactions (e.g. the last 10) to audit and verify with the LLM
+  if (force && needsCategorization.length === 0) {
+    needsCategorization = transactions.slice(-10);
+  }
+
   if (needsCategorization.length === 0) {
     console.log('[Categorizer] All transactions already categorized — skipping API call');
     return transactions;
@@ -37,16 +44,17 @@ export async function categorizeTransactions(transactions) {
   let categories = null;
 
   if (hasValidApiKey()) {
-    console.log(`[Categorizer] Running batched categorization on ${needsCategorization.length} items (1 API call)...`);
+    const promptBatch = needsCategorization.slice(0, 15);
+    console.log(`[Categorizer] Running batched categorization on ${promptBatch.length} items with Groq LLM (1 API call)...`);
 
-    const txList = JSON.stringify(needsCategorization.map(t => ({
+    const txList = JSON.stringify(promptBatch.map(t => ({
       id:          t.id,
       description: t.description,
       amount:      t.amount,
       type:        t.type,
     })), null, 2);
 
-    const prompt = `Categorize these ${needsCategorization.length} transactions into exactly one of:
+    const prompt = `Categorize these ${promptBatch.length} transactions into exactly one of:
 rent, payroll, cloud/infra, software, marketing, client_income, refund, other.
 
 Transactions:
@@ -56,11 +64,11 @@ Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
 [{"id": 1, "category": "cloud/infra"}, {"id": 2, "category": "payroll"}]`;
 
     try {
-      const response = await callLLM(prompt, { model: 'fast' });
+      const response = await callLLM(prompt, { model: 'fast', maxTokens: 2500 });
       const raw      = extractText(response);
       categories     = safeParseJSON(raw);
       if (Array.isArray(categories)) {
-        console.log(`[Categorizer] LLM returned ${categories.length} categories.`);
+        console.log(`[Categorizer] Groq LLM returned ${categories.length} categories.`);
       }
     } catch (err) {
       if (err.status === 429) {
@@ -82,7 +90,7 @@ Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
       if (item && item.category) cat = item.category.toLowerCase().trim();
     }
 
-    if (!cat) cat = fallbackCategorize(tx.description, tx.type);
+    if (!cat) cat = tx.category || fallbackCategorize(tx.description, tx.type);
 
     tx.category = cat;
     updateTransaction(tx.id, { category: cat });

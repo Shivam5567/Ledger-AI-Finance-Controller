@@ -15,7 +15,7 @@ export default function ReportPanel({ hasRunAgent, onViewExceptions }) {
   useEffect(() => {
     if (!hasRunAgent) return;
     setLoading(true);
-    fetch('/api/report')
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/report`)
       .then(r => r.json())
       .then(data => {
         setReport(data);
@@ -51,7 +51,7 @@ export default function ReportPanel({ hasRunAgent, onViewExceptions }) {
   const matched = summary.matched || 0;
   const exceptions = summary.exceptions || 0;
   const matchRateNum = total > 0 ? ((matched / total) * 100).toFixed(1) : '0.0';
-  const duration = summary.durationSeconds || '8.2';
+  const duration = summary.durationSeconds || '—';
   const maxExceptionCount = Math.max(...exceptionBreakdown.map(e => e.count), 1);
 
   return (
@@ -67,7 +67,7 @@ export default function ReportPanel({ hasRunAgent, onViewExceptions }) {
           </p>
         </div>
         <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-[#007A4D] border border-emerald-200">
-          Track 04 Honest Exception List
+          Reconciliation Report
         </span>
       </div>
 
