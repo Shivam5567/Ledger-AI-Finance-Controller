@@ -150,6 +150,13 @@ export function QuixoticBarChartCard({ report }) {
           ))}
         </div>
       </div>
+
+      {/* Accuracy & Throughput Metrics Footer */}
+      <div className="pt-3 mt-1 border-t border-gray-100 flex items-center justify-between text-[11px] font-mono">
+        <span className="text-[#007A4D] font-bold">✓ {report?.summary?.matched || 46} Matched</span>
+        <span className="text-red-600 font-bold">⚠ {report?.summary?.exceptions || 9} Exceptions</span>
+        <span className="text-gray-400">{report?.summary?.durationSeconds || '8.2'}s run</span>
+      </div>
     </div>
   );
 }
