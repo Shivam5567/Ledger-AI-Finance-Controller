@@ -15,25 +15,25 @@ function getClient() {
 // ---------------------------------------------------------------------------
 const PREFERRED = {
   fast: [
-    // Fast/small models — for batch categorization
+    // Primary: exact model requested
+    'llama-3.1-8b-instant',
+    // Fallbacks in case of account restrictions
+    'llama3-8b-8192',
     'openai/gpt-oss-20b',
     'qwen/qwen3.6-27b',
     'allam-2-7b',
-    // Standard Groq models (may be available on other accounts)
-    'llama-3.1-8b-instant',
-    'llama3-8b-8192',
     'gemma2-9b-it',
   ],
   smart: [
-    // Best models — for anomaly explanations, action drafts, chat
+    // Primary: exact model requested
+    'llama-3.3-70b-versatile',
+    // Fallbacks in case of account restrictions
+    'llama3-70b-8192',
     'qwen/qwen3.8-27b',
     'openai/gpt-oss-120b',
     'groq/compound',
     'qwen/qwen3.6-27b',
     'openai/gpt-oss-20b',
-    // Standard Groq models (may be available on other accounts)
-    'llama-3.3-70b-versatile',
-    'llama3-70b-8192',
     'mixtral-8x7b-32768',
   ],
 };
