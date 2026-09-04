@@ -55,7 +55,7 @@ export default function App() {
   const [selectedTx, setSelectedTx]               = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  const { transactions, setTransactions, refetch: refetchTx } = useTransactions();
+  const { transactions, setTransactions, loading: isTxLoading, refetch: refetchTx } = useTransactions();
   const { summary,      refetch: refetchSummary } = useSummary();
   const {
     data: dashboardData,
@@ -368,7 +368,7 @@ export default function App() {
       }
     >
       {/* ── 1. Empty State (when no transactions loaded at all) ── */}
-      {!hasIngested ? (
+      {!hasIngested && !isTxLoading ? (
         <EmptyState onIngest={handleIngest} onUpload={handleUpload} isIngesting={isIngesting} isUploading={isUploading} />
       ) : hasData && aiStatus === 'NOT_RUN' ? (
         /* ── 2. Pending AI Reconciliation (data exists, AI not yet run) ── */
