@@ -153,12 +153,6 @@ export default function AgentTraceInline({
                   Step {Math.max(1, currentIndex + 1)} of 5
                 </span>
               )}
-              {!isRunning && (agentResult?.callsUsed !== undefined || latestRun?.calls_used !== undefined) && (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-[#007A4D] font-semibold flex items-center gap-1" title="Groq AI API calls executed during reconciliation">
-                  <LightningBoltIcon className="w-3 h-3 text-[#007A4D]" />
-                  <span>{agentResult?.callsUsed ?? latestRun?.calls_used} Groq API {Number(agentResult?.callsUsed ?? latestRun?.calls_used) === 1 ? 'call' : 'calls'}</span>
-                </span>
-              )}
             </div>
 
             <p className="text-xs text-gray-600 font-mono mt-0.5">
