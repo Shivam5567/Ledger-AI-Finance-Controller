@@ -31,6 +31,18 @@ try {
   db.exec(`ALTER TABLE transactions ADD COLUMN resolved_at TEXT;`);
 } catch (e) {}
 
+try {
+  db.exec(`ALTER TABLE transactions ADD COLUMN match_status TEXT DEFAULT 'matched';`);
+} catch (e) {}
+
+try {
+  db.exec(`ALTER TABLE transactions ADD COLUMN exception_type TEXT;`);
+} catch (e) {}
+
+try {
+  db.exec(`ALTER TABLE transactions ADD COLUMN exception_reason TEXT;`);
+} catch (e) {}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS dismissed_rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -181,6 +193,33 @@ export function setMetadata(key, value) {
 export function getMetadata(key) {
   const row = db.prepare('SELECT value FROM metadata WHERE key = ?').get(key);
   return row ? row.value : null;
+}
+
+export function getReport() {
+  const total      = db.prepare('SELECT COUNT(*) as count FROM transactions').get().count;
+  const matched    = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE match_status = 'matched' OR match_status IS NULL").get().count;
+  const exceptions = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE match_status = 'exception'").get().count;
+  const matchRate  = total > 0 ? ((matched / total) * 100).toFixed(1) : '0.0';
+
+  const exceptionList = db.prepare(`
+    SELECT id, date, description, amount, type, exception_type, exception_reason
+    FROM transactions
+    WHERE match_status = 'exception'
+    ORDER BY date DESC
+  `).all();
+
+  const byType = db.prepare(`
+    SELECT exception_type, COUNT(*) as count
+    FROM transactions
+    WHERE match_status = 'exception'
+    GROUP BY exception_type
+  `).all();
+
+  return {
+    summary: { total, matched, exceptions, matchRate: `${matchRate}%` },
+    exceptionBreakdown: byType,
+    exceptionList,
+  };
 }
 
 export default db;

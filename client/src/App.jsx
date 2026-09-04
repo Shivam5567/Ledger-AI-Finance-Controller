@@ -8,6 +8,7 @@ import RunAgentButton from './components/RunAgentButton';
 import AgentTrace from './components/AgentTrace';
 import HeroMetrics from './components/HeroMetrics';
 import ProactiveBanner from './components/ProactiveBanner';
+import ReportPanel from './components/ReportPanel';
 import { useTransactions, useSummary, useIngest, useRunAgent, useAction, useExport } from './hooks/useApi';
 
 export default function App() {
@@ -183,6 +184,13 @@ export default function App() {
             {hasRunAgent && summary?.byCategory?.length > 0 && (
               <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
                 <SpendChart byCategory={summary.byCategory} />
+              </div>
+            )}
+
+            {/* Reconciliation Report */}
+            {hasRunAgent && (
+              <div className="animate-slide-up" style={{ animationDelay: '0.18s' }}>
+                <ReportPanel hasRunAgent={hasRunAgent} />
               </div>
             )}
 

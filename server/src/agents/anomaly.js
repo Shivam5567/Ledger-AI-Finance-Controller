@@ -41,7 +41,17 @@ export async function detectAnomalies(transactions) {
           tx1.anomaly_explanation =
             `Flagged: Exact duplicate detected — ${tx1.description} for $${tx1.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}.`;
         }
-        updateTransaction(tx1.id, { flags: tx1.flags, anomaly_explanation: tx1.anomaly_explanation, confidence: tx1.confidence });
+        tx1.match_status    = 'exception';
+        tx1.exception_type  = 'duplicate_payment';
+        tx1.exception_reason = `Identical payment to ${tx1.description} found within 5 days — possible double charge`;
+        updateTransaction(tx1.id, {
+          flags: tx1.flags,
+          anomaly_explanation: tx1.anomaly_explanation,
+          confidence: tx1.confidence,
+          match_status: tx1.match_status,
+          exception_type: tx1.exception_type,
+          exception_reason: tx1.exception_reason,
+        });
       }
     }
   }
@@ -67,8 +77,17 @@ export async function detectAnomalies(transactions) {
       tx.confidence  = tx.amount > (baselineAvg || totalAvg) * 3 ? 'high' : 'medium';
       tx.baselineAvg = baselineAvg || totalAvg;
       tx.multiplier  = (tx.amount / (baselineAvg || totalAvg)).toFixed(1);
+      tx.match_status    = 'exception';
+      tx.exception_type  = 'spend_anomaly';
+      tx.exception_reason = `This charge is ${tx.multiplier}x the average ${tx.category} spend of $${tx.baselineAvg.toFixed(2)}`;
       anomalousTxs.push(tx);
-      updateTransaction(tx.id, { flags: tx.flags, confidence: tx.confidence });
+      updateTransaction(tx.id, {
+        flags: tx.flags,
+        confidence: tx.confidence,
+        match_status: tx.match_status,
+        exception_type: tx.exception_type,
+        exception_reason: tx.exception_reason,
+      });
     }
   }
 
@@ -77,7 +96,7 @@ export async function detectAnomalies(transactions) {
     const needsExplanation = anomalousTxs.filter(t => !t.anomaly_explanation);
 
     if (needsExplanation.length > 0 && hasValidApiKey()) {
-      console.log(`[Anomaly] Running batched Gemini explanation for ${needsExplanation.length} flagged items (1 API call)...`);
+      console.log(`[Anomaly] Running batched explanation for ${needsExplanation.length} flagged items (1 API call)...`);
 
       const itemsList = JSON.stringify(needsExplanation.map(t => ({
         id:          t.id,

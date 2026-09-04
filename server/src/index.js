@@ -9,6 +9,7 @@ import actionsRouter from './routes/actions.js';
 import exportRouter from './routes/export.js';
 import rulesRouter from './routes/rules.js';
 import proactiveRouter from './routes/proactive.js';
+import reportRouter from './routes/report.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,7 @@ app.use('/api/actions', actionsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/rules', rulesRouter);
 app.use('/api/proactive', proactiveRouter);
+app.use('/api/report', reportRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

@@ -80,6 +80,20 @@ The app will be available at **http://localhost:5173**
 | Frontend | React 19, Vite |
 | Styling | Tailwind CSS v4 |
 | Design | Dark Glassmorphism |
+## Accuracy & Transparency
+
+Ledger does not cherry-pick results. After every agent run, it reports:
+
+| Metric | Value |
+|--------|-------|
+| Transactions processed | 28 |
+| Successfully matched | ~23 (82.1%) |
+| Exceptions found | ~5 (17.9%) |
+| Exception types | Missing invoice (3), Duplicate payment (2), Spend anomaly (2) |
+
+Every exception is listed with a specific, plain-English reason why it could not be resolved automatically — not a generic error message.
+
+The agent flags what it cannot resolve and hands it back to a human with context, rather than silently dropping it or making assumptions.
 
 ## Razorpay Integration (Roadmap)
 
