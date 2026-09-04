@@ -11,54 +11,70 @@ function getClient() {
 }
 
 // ---------------------------------------------------------------------------
-// Preferred model lists — tried in order, first available on this account wins
+// Preferred candidate lists — tried in order, first that actually works wins
 // ---------------------------------------------------------------------------
-const PREFERRED = {
+const CANDIDATES = {
   fast: [
-    // Primary: exact model requested
-    'llama-3.1-8b-instant',
-    // Fallbacks in case of account restrictions
-    'llama3-8b-8192',
     'openai/gpt-oss-20b',
     'qwen/qwen3.6-27b',
+    'qwen/qwen3.8-27b',
     'allam-2-7b',
-    'gemma2-9b-it',
   ],
   smart: [
-    // Primary: exact model requested
-    'llama-3.3-70b-versatile',
-    // Fallbacks in case of account restrictions
-    'llama3-70b-8192',
-    'qwen/qwen3.8-27b',
     'openai/gpt-oss-120b',
-    'groq/compound',
-    'qwen/qwen3.6-27b',
+    'qwen/qwen3.8-27b',
     'openai/gpt-oss-20b',
-    'mixtral-8x7b-32768',
+    'qwen/qwen3.6-27b',
   ],
 };
 
-// Resolved after first model discovery call — cached for the process lifetime
+// Resolved after first probe call — cached for the process lifetime
 let _resolvedModels = null;
+
+// ---------------------------------------------------------------------------
+// Probe a model with a minimal real call to confirm it's actually usable
+// Returns true if the call succeeds (even with empty content)
+// ---------------------------------------------------------------------------
+async function probeModel(modelId) {
+  try {
+    await getClient().chat.completions.create({
+      model:      modelId,
+      max_tokens: 5,
+      messages:   [{ role: 'user', content: 'hi' }],
+    });
+    return true;
+  } catch (err) {
+    const blocked = err.status === 403 || err.status === 404 || err.status === 400;
+    if (blocked) {
+      console.log(`[LLM] Model "${modelId}" unavailable (${err.status}) — skipping`);
+    }
+    return !blocked; // retry-able errors (429 etc.) = treat as available
+  }
+}
 
 async function resolveModels() {
   if (_resolvedModels) return _resolvedModels;
 
-  try {
-    const resp      = await getClient().models.list();
-    const available = new Set((resp.data || []).map(m => m.id));
-    console.log(`[LLM] Available models: ${[...available].join(', ')}`);
+  console.log('[LLM] Probing available models...');
 
-    const fast  = PREFERRED.fast.find(m => available.has(m))  || PREFERRED.fast[0];
-    const smart = PREFERRED.smart.find(m => available.has(m)) || PREFERRED.smart[0];
+  let fast  = null;
+  let smart = null;
 
-    _resolvedModels = { fast, smart };
-    console.log(`[LLM] Selected — fast: "${fast}" | smart: "${smart}"`);
-  } catch (e) {
-    console.warn('[LLM] Could not list models, using defaults:', e.message);
-    _resolvedModels = { fast: PREFERRED.fast[0], smart: PREFERRED.smart[0] };
+  // Find best working fast model
+  for (const id of CANDIDATES.fast) {
+    if (await probeModel(id)) { fast = id; break; }
   }
 
+  // Find best working smart model (may be same as fast if options are limited)
+  for (const id of CANDIDATES.smart) {
+    if (await probeModel(id)) { smart = id; break; }
+  }
+
+  fast  = fast  || CANDIDATES.fast[0];
+  smart = smart || CANDIDATES.smart[0];
+
+  _resolvedModels = { fast, smart };
+  console.log(`[LLM] Using — fast: "${fast}" | smart: "${smart}"`);
   return _resolvedModels;
 }
 
@@ -82,7 +98,7 @@ export function hasValidApiKey() {
 // ---------------------------------------------------------------------------
 export async function callLLM(prompt, options = {}) {
   const {
-    model     = 'smart',   // 'fast' | 'smart'
+    model     = 'smart',
     maxTokens = 4096,
     tools     = null,
     messages  = null,
@@ -105,7 +121,7 @@ export async function callLLM(prompt, options = {}) {
     return await getClient().chat.completions.create(body);
   } catch (error) {
     if (error.status === 429) {
-      console.error('[LLM] Rate limit (429) — reduce call frequency');
+      console.error('[LLM] Rate limit (429)');
     } else {
       console.error('[LLM] API error:', error.message);
     }
@@ -137,12 +153,7 @@ export async function callLLMStream(prompt, options = {}) {
 // Response helpers
 // ---------------------------------------------------------------------------
 export function extractText(response) {
-  const msg = response.choices?.[0]?.message;
-  if (!msg) return '';
-  // Some "thinking" models (qwen3, gpt-oss) emit their answer in `content`
-  // but only after the chain-of-thought in `reasoning` finishes.
-  // If content is empty, fall back to reasoning (truncated to avoid returning raw CoT).
-  return msg.content || '';
+  return response.choices?.[0]?.message?.content || '';
 }
 
 export function extractToolCalls(response) {
