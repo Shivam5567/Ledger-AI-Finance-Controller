@@ -115,7 +115,8 @@ export default function TransactionTable({
                 const isResolved = tx.action_status === 'approved' || tx.action_status === 'dismissed';
                 const isFlagged = (tx.flags && tx.flags.length > 0) || tx.match_status === 'exception';
                 const isExpanded = expandedId === tx.id;
-                const formattedAmt = `${tx.type === 'income' ? '+' : ''}${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
+                const isIncome = tx.type === 'income';
+                const formattedAmt = `${isIncome ? '+' : '-'}₹${Math.abs(tx.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
                 return (
                   <React.Fragment key={tx.id}>
@@ -180,7 +181,7 @@ export default function TransactionTable({
                       </td>
 
                       {/* Amount */}
-                      <td className="py-3.5 text-right font-mono font-bold text-gray-900 text-[13px] tabular-nums whitespace-nowrap">
+                      <td className={`py-3.5 text-right font-mono font-bold text-[13px] tabular-nums whitespace-nowrap ${isIncome ? 'text-[#007A4D]' : 'text-gray-900'}`}>
                         {formattedAmt}
                       </td>
                     </tr>

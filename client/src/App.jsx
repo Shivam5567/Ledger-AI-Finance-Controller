@@ -154,6 +154,7 @@ export default function App() {
             onRunAgent={handleRunAgent}
             isRunning={isRunning}
             txCount={transactions.length}
+            onToggleChat={() => setChatOpen(true)}
           />
         )
       }

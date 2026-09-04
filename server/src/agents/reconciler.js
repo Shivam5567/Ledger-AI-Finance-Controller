@@ -2,15 +2,12 @@ import { updateTransaction, isDismissed } from '../db.js';
 
 export function reconcileTransactions(transactions) {
   console.log(`[Reconciler] Reconciling ${transactions.length} transactions... (0 API calls — pure logic)`);
-  const invoiceCounts = {};
   
-  for (const tx of transactions) {
-    if (tx.invoice_ref) {
-      invoiceCounts[tx.invoice_ref] = (invoiceCounts[tx.invoice_ref] || 0) + 1;
-    }
-  }
+  // Sort transactions chronologically to identify which payment is the original vs duplicate
+  const sorted = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const seenIncomeInvoices = new Set();
 
-  for (const tx of transactions) {
+  for (const tx of sorted) {
     let flagsUpdated = false;
     const flags = new Set(tx.flags || []);
 
@@ -22,7 +19,7 @@ export function reconcileTransactions(transactions) {
         } else {
           flags.add('unmatched_invoice');
           flagsUpdated = true;
-          tx.anomaly_explanation = `Flagged: Income transaction of $${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} (${tx.description}) is missing an invoice reference.`;
+          tx.anomaly_explanation = `Flagged: Income transaction of ₹${tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${tx.description}) is missing an invoice reference.`;
           tx.match_status    = 'exception';
           tx.exception_type  = 'missing_invoice';
           tx.exception_reason = `Income transaction has no invoice reference — cannot verify payment source`;
@@ -30,17 +27,22 @@ export function reconcileTransactions(transactions) {
       }
     }
 
-    // ── Duplicate invoice ref ───────────────────────────────────────────────
-    if (tx.invoice_ref && invoiceCounts[tx.invoice_ref] > 1) {
-      if (isDismissed('duplicate_invoice', tx.description)) {
-        tx.previously_dismissed = true;
+    // ── Duplicate invoice ref (subsequent payment re-using existing ref) ─────
+    if (tx.type === 'income' && tx.invoice_ref && tx.invoice_ref.trim() !== '') {
+      const ref = tx.invoice_ref.trim();
+      if (seenIncomeInvoices.has(ref)) {
+        if (isDismissed('duplicate_invoice', tx.description)) {
+          tx.previously_dismissed = true;
+        } else {
+          flags.add('duplicate_invoice');
+          flagsUpdated = true;
+          tx.anomaly_explanation = `Flagged: Invoice reference ${ref} was already used on an earlier payment.`;
+          tx.match_status    = 'exception';
+          tx.exception_type  = 'duplicate_ref';
+          tx.exception_reason = `Invoice ref ${ref} was already reconciled on a prior payment — possible duplicate billing`;
+        }
       } else {
-        flags.add('duplicate_invoice');
-        flagsUpdated = true;
-        tx.anomaly_explanation = `Flagged: Invoice reference ${tx.invoice_ref} appears on multiple transactions.`;
-        tx.match_status    = 'exception';
-        tx.exception_type  = 'duplicate_ref';
-        tx.exception_reason = `Invoice ref ${tx.invoice_ref} appears on multiple transactions — possible duplicate billing`;
+        seenIncomeInvoices.add(ref);
       }
     }
 

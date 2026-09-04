@@ -177,7 +177,7 @@ export function VendorBadge({ name, category }) {
   if (n.includes('payroll')) {
     return (
       <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-sm font-bold text-blue-600">
-        $
+        ₹
       </div>
     );
   }

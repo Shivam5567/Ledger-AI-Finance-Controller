@@ -5,11 +5,12 @@ import { callLLM, extractText, safeParseJSON, hasValidApiKey } from '../utils/ll
 // Template drafts (used when API is unavailable or quota is exhausted)
 // ---------------------------------------------------------------------------
 function makeReminderEmailDraft(tx) {
-  return `Subject: Payment Reminder — Invoice Required — $${tx.amount}
+  const amtFormatted = tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  return `Subject: Payment Reminder — Invoice Required — ₹${amtFormatted}
 
 Dear [Client/Finance Team],
 
-We hope this message finds you well. Our records indicate we received a payment of $${tx.amount} on ${tx.date} referencing "${tx.description}", however we were unable to match this to any outstanding invoice in our system.
+We hope this message finds you well. Our records indicate we received a payment of ₹${amtFormatted} on ${tx.date} referencing "${tx.description}", however we were unable to match this to any outstanding invoice in our system.
 
 To ensure accurate reconciliation, could you please:
   1. Share the invoice number or reference for this payment
@@ -24,6 +25,7 @@ Ledger AI Controller`;
 
 function makeRefundRequestDraft(tx) {
   const flagDetail = tx.flags.includes('duplicate_invoice') ? 'duplicate_invoice' : 'duplicate';
+  const amtFormatted = tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
   return `Subject: Duplicate Payment Detected — Refund Request
 
 Hi Team,
@@ -31,11 +33,11 @@ Hi Team,
 Our automated reconciliation system has flagged a potential duplicate payment:
 
   Transaction: ${tx.description}
-  Amount:      $${tx.amount}
+  Amount:      ₹${amtFormatted}
   Date:        ${tx.date}
   Flag:        ${flagDetail}
 
-This charge appears to be a duplicate of a previous transaction. Please verify with the relevant vendor/client and initiate a refund or credit memo for $${tx.amount} if confirmed.
+This charge appears to be a duplicate of a previous transaction. Please verify with the relevant vendor/client and initiate a refund or credit memo for ₹${amtFormatted} if confirmed.
 
 Action required by: [3 business days from date]
 
@@ -67,9 +69,10 @@ export async function generateActions(transactions) {
       } else if (tx.action_type === 'refund_request') {
         tx._fallbackDraft = makeRefundRequestDraft(tx);
       } else if (tx.action_type === 'anomaly_explanation') {
+        const amtFormatted = tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 });
         tx._fallbackDraft = `⚠️ SPEND ALERT — ${tx.description}
 ────────────────────────────────────────
-Amount    : $${tx.amount}
+Amount    : ₹${amtFormatted}
 Date      : ${tx.date}
 Category  : ${tx.category || 'N/A'}
 Reason    : This charge exceeds the typical spend threshold for this category.
@@ -95,7 +98,7 @@ Ledger AI — Automated Anomaly Detection`;
     const promptList = JSON.stringify(needsDraft.map(t => ({
       id:          t.id,
       description: t.description,
-      amount:      t.amount,
+      amount:      `₹${t.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
       flag_type:   t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice')
                      ? 'duplicate'
                      : 'unmatched_invoice',
@@ -107,8 +110,8 @@ Use the flag_type to determine the draft format:
 - duplicate → refund request note (internal)
 - unmatched_invoice → payment reminder email (to client)
 
-Include the actual description, amount, and date in every draft.
-Make it sound like a real finance team wrote it, not a template.
+Include the actual description, amount (formatted in ₹ INR), and date in every draft.
+Make it sound like a real finance team wrote it, not a template. Always use Indian Rupees (₹).
 
 Flagged transactions:
 ${promptList}

@@ -50,7 +50,7 @@ const TOOLS = [
 // Execute a tool call against the live SQLite DB
 // ---------------------------------------------------------------------------
 function executeTool(name, args) {
-  const fmt = (n) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  const fmt = (n) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
   if (name === 'get_summary') {
     const s = getSummary();
@@ -97,7 +97,7 @@ function getFallbackAnswer(message) {
   const q      = message.toLowerCase();
   const allTx  = getAllTransactions();
   const summary = getSummary();
-  const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2 });
+  const fmt = (n) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
   const expensesByCategory = (catName, keyword = '') =>
     allTx.filter(
@@ -109,29 +109,29 @@ function getFallbackAnswer(message) {
   if (q.includes('payroll') || q.includes('salary') || q.includes('wages')) {
     const txs   = expensesByCategory('payroll', 'payroll');
     const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Payroll total: **$${fmt(total)}** across ${txs.length} payment cycles.`;
+    return `Payroll total: **${fmt(total)}** across ${txs.length} payment cycles.`;
   }
   if (q.includes('cloud') || q.includes('aws') || q.includes('infra')) {
     const txs   = expensesByCategory('cloud/infra', 'aws');
     const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Cloud/infra spend: **$${fmt(total)}** across ${txs.length} transactions.`;
+    return `Cloud/infra spend: **${fmt(total)}** across ${txs.length} transactions.`;
   }
   if (q.includes('duplicate') || q.includes('double')) {
     const dupes = allTx.filter(t => t.flags && (t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice')));
     if (!dupes.length) return 'No duplicate payments detected.';
-    const list = dupes.map(d => `- **${d.description}** ($${fmt(d.amount)}) on ${d.date}`).join('\n');
+    const list = dupes.map(d => `- **${d.description}** (${fmt(d.amount)}) on ${d.date}`).join('\n');
     return `**${dupes.length} duplicate entries** detected:\n${list}`;
   }
   if (q.includes('biggest') || q.includes('largest') || q.includes('top')) {
     if (summary.byCategory?.length) {
       const top = summary.byCategory[0];
-      return `Biggest expense category: **${top.category}** ($${fmt(top.total)}).`;
+      return `Biggest expense category: **${top.category}** (${fmt(top.total)}).`;
     }
   }
   if (allTx.length === 0) {
     return 'No transaction data loaded yet. Please click **Load Transactions** and then **Run AI Agent** first.';
   }
-  return `**Ledger Summary**\n- Income: $${fmt(summary.totalIncome)}\n- Expenses: $${fmt(summary.totalExpenses)}\n- Net: $${fmt(summary.net)}\n- Flagged: ${summary.flaggedCount} items`;
+  return `**Ledger Summary**\n- Income: ${fmt(summary.totalIncome)}\n- Expenses: ${fmt(summary.totalExpenses)}\n- Net: ${fmt(summary.net)}\n- Flagged: ${summary.flaggedCount} items`;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +173,7 @@ export async function handleChatMessage(message, res) {
 
   try {
     const systemPrompt = `You are a financial analyst assistant for Ledger AI.
+Always format currency amounts in Indian Rupees (₹) using comma grouping (e.g. ₹15,000.00). Never use USD or $.
 Use the query_transactions or get_summary tools to fetch exact numbers from the live database.
 Always provide specific amounts and counts — never estimates.
 Format answers with markdown (bold for key numbers, bullet points for lists).

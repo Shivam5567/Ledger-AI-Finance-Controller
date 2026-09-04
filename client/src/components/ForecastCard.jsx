@@ -69,7 +69,7 @@ export default function ForecastCard({ summary }) {
             </span>
 
             <span className="w-24 font-mono font-bold text-gray-900 tabular-nums text-[13px]">
-              ${item.amount.toLocaleString()}
+              ₹{item.amount.toLocaleString('en-IN')}
             </span>
 
             {/* Pure CSS bar */}
@@ -98,7 +98,7 @@ export default function ForecastCard({ summary }) {
       <div className="border-t border-gray-100 pt-4 flex items-baseline justify-between">
         <span className="text-xs text-gray-500 font-medium">Total projected monthly run-rate:</span>
         <span className="text-xl font-bold font-mono text-gray-900 tabular-nums">
-          ${totalProjected.toLocaleString()} USD
+          ₹{totalProjected.toLocaleString('en-IN')}
         </span>
       </div>
     </div>

@@ -4,16 +4,6 @@ import { callLLM, extractText, safeParseJSON, hasValidApiKey } from '../utils/ll
 export async function detectAnomalies(transactions) {
   console.log(`[Anomaly] Running anomaly detection on ${transactions.length} transactions...`);
 
-  // ── Per-category expense stats ────────────────────────────────────────────
-  const categoryStats = {};
-  for (const tx of transactions) {
-    if (tx.type === 'expense' && tx.category) {
-      if (!categoryStats[tx.category]) categoryStats[tx.category] = { sum: 0, count: 0 };
-      categoryStats[tx.category].sum   += tx.amount;
-      categoryStats[tx.category].count += 1;
-    }
-  }
-
   // ── Flag exact duplicates (same description + amount within 5 days) ────────
   for (let i = 0; i < transactions.length; i++) {
     const tx1   = transactions[i];
@@ -39,7 +29,7 @@ export async function detectAnomalies(transactions) {
         tx1.confidence = 'high';
         if (!tx1.anomaly_explanation) {
           tx1.anomaly_explanation =
-            `Flagged: Exact duplicate detected — ${tx1.description} for $${tx1.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}.`;
+            `Flagged: Exact duplicate detected — ${tx1.description} for ₹${tx1.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}.`;
         }
         tx1.match_status    = 'exception';
         tx1.exception_type  = 'duplicate_payment';
@@ -56,30 +46,30 @@ export async function detectAnomalies(transactions) {
     }
   }
 
-  // ── Flag statistical anomalies (>2× category baseline) ──────────────────
+  // ── Flag statistical anomalies (>=2.8× category median) ───────────────────
   const anomalousTxs = [];
   for (const tx of transactions) {
-    if (tx.type !== 'expense' || !tx.category || !categoryStats[tx.category]) continue;
+    if (tx.type !== 'expense' || !tx.category || tx.category === 'other') continue;
 
-    const stats       = categoryStats[tx.category];
-    const baselineAvg = stats.count > 1
-      ? (stats.sum - tx.amount) / (stats.count - 1)
-      : stats.sum / stats.count;
-    const totalAvg  = stats.sum / stats.count;
-    const isAnomaly =
-      (baselineAvg > 0 && tx.amount > baselineAvg * 2) ||
-      (tx.amount > totalAvg * 1.5 && stats.count > 1);
+    const catTxs = transactions.filter(t => t.type === 'expense' && t.category === tx.category);
+    if (catTxs.length < 2) continue;
+
+    const sortedAmounts = catTxs.map(t => t.amount).sort((a, b) => a - b);
+    const median = sortedAmounts[Math.floor(sortedAmounts.length / 2)];
+    
+    // Anomaly threshold: charge exceeds 2.8x the category median run-rate
+    const isAnomaly = median > 0 && tx.amount >= median * 2.8;
 
     if (isAnomaly && !isDismissed('anomaly', tx.description)) {
       const flags = new Set(tx.flags || []);
       flags.add('anomaly');
       tx.flags       = Array.from(flags);
-      tx.confidence  = tx.amount > (baselineAvg || totalAvg) * 3 ? 'high' : 'medium';
-      tx.baselineAvg = baselineAvg || totalAvg;
-      tx.multiplier  = (tx.amount / (baselineAvg || totalAvg)).toFixed(1);
+      tx.confidence  = 'high';
+      tx.baselineAvg = median;
+      tx.multiplier  = (tx.amount / median).toFixed(1);
       tx.match_status    = 'exception';
       tx.exception_type  = 'spend_anomaly';
-      tx.exception_reason = `This charge is ${tx.multiplier}x the average ${tx.category} spend of $${tx.baselineAvg.toFixed(2)}`;
+      tx.exception_reason = `This charge is ${tx.multiplier}x the typical ${tx.category} baseline of ₹${tx.baselineAvg.toFixed(2)}`;
       anomalousTxs.push(tx);
       updateTransaction(tx.id, {
         flags: tx.flags,
@@ -102,17 +92,17 @@ export async function detectAnomalies(transactions) {
         id:          t.id,
         description: t.description,
         amount:      t.amount,
-        flag_reason: `${t.multiplier}x category average of $${t.baselineAvg.toFixed(2)}`,
+        flag_reason: `${t.multiplier}x category median of ₹${t.baselineAvg.toFixed(2)}`,
       })), null, 2);
 
       const prompt = `Write a one-line plain-English explanation for each flagged transaction.
-Be specific — include the actual amount and the average it's being compared to.
+Be specific — include the actual amount and the typical baseline it's being compared to.
 
 Flagged transactions:
 ${itemsList}
 
 Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
-[{"id": 5, "explanation": "This AWS charge is 3.2x your typical monthly average of $2,400."}]`;
+[{"id": 5, "explanation": "This AWS charge is 3.2x your typical monthly baseline of ₹2,400."}]`;
 
       try {
         const response = await callLLM(prompt, { model: 'smart' });
@@ -137,8 +127,8 @@ Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
     for (const tx of anomalousTxs) {
       if (!tx.anomaly_explanation) {
         tx.anomaly_explanation =
-          `Flagged: ${tx.description} charge ($${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) ` +
-          `is ${tx.multiplier}x your category average ($${tx.baselineAvg.toLocaleString('en-US', { minimumFractionDigits: 2 })}).`;
+          `Flagged: ${tx.description} charge (₹${tx.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) ` +
+          `is ${tx.multiplier}x your category baseline (₹${tx.baselineAvg.toLocaleString('en-IN', { minimumFractionDigits: 2 })}).`;
         updateTransaction(tx.id, { anomaly_explanation: tx.anomaly_explanation });
       }
     }

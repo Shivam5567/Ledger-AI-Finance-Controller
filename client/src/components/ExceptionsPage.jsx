@@ -116,7 +116,7 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
                 {items.map((tx) => {
                   const isDraftOpen = activeDraftId === tx.id;
                   const isIncome = tx.type === 'income';
-                  const formattedAmt = `${isIncome ? '+' : '-'}$${Math.abs(tx.amount).toLocaleString('en-US', {
+                  const formattedAmt = `${isIncome ? '+' : '-'}₹${Math.abs(tx.amount).toLocaleString('en-IN', {
                     minimumFractionDigits: 2,
                   })}`;
 
