@@ -427,24 +427,25 @@ export function QuixoticCreditAndExceptionsCard({
           </button>
         </div>
 
-        {/* Avatars Stack matching image */}
+        {/* Flagged Vendor Avatar Stack matching reference image layout */}
         <div className="flex items-center gap-1.5 pt-1">
-          <div className="w-8 h-8 rounded-full bg-amber-100 border-2 border-white flex items-center justify-center text-xs font-bold text-amber-700 shadow-xs">
-            👨‍💼
+          <div className="w-8 h-8 rounded-full bg-[#FF9900]/20 border-2 border-white flex items-center justify-center text-[10px] font-bold text-[#E68A00] shadow-xs" title="AWS Infrastructure Spike">
+            AWS
           </div>
-          <div className="w-8 h-8 rounded-full bg-blue-100 border-2 border-white flex items-center justify-center text-xs font-bold text-blue-700 shadow-xs">
-            👩‍💻
+          <div className="w-8 h-8 rounded-full bg-[#1877F2]/20 border-2 border-white flex items-center justify-center text-[10px] font-bold text-[#1877F2] shadow-xs" title="Facebook Ads Duplicate">
+            FB
           </div>
-          <div className="w-8 h-8 rounded-full bg-purple-100 border-2 border-white flex items-center justify-center text-xs font-bold text-purple-700 shadow-xs">
-            👨‍🔧
+          <div className="w-8 h-8 rounded-full bg-purple-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-purple-700 shadow-xs" title="Gamma Inc Missing Ref">
+            GM
           </div>
-          <div className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-xs font-bold text-emerald-700 shadow-xs">
-            👩‍💼
+          <div className="w-8 h-8 rounded-full bg-amber-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-amber-700 shadow-xs" title="Office Rent Duplicate">
+            OF
           </div>
-          {/* +2 or exception count badge matching reference image */}
+          {/* Green counter badge matching reference image */}
           <div
             onClick={onViewExceptions}
             className="w-8 h-8 rounded-full bg-[#007A4D] text-white text-xs font-bold flex items-center justify-center shadow-xs cursor-pointer hover:bg-[#006644] transition-colors"
+            title="Click to review all exceptions"
           >
             +{Math.max(2, exceptions.length)}
           </div>
