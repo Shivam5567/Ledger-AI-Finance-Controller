@@ -63,12 +63,12 @@ export function QuixoticBarChartCard({ report }) {
   const matchedRate = report?.summary?.matchRate || '83.6%';
 
   const bars = [
-    { label: 'JAN', height: '40%', value: '2.1k' },
-    { label: 'FEB', height: '62%', value: '3.4k' },
-    { label: 'MAR', height: '50%', value: '2.8k' },
-    { label: 'APR', height: '94%', value: '4.9k', active: true }, // Peak bar in green
-    { label: 'MAY', height: '58%', value: '3.2k' },
-    { label: 'JUN', height: '64%', value: '3.6k' },
+    { label: 'WK 1', height: '42%', value: '1.2k' },
+    { label: 'WK 2', height: '65%', value: '2.4k' },
+    { label: 'WK 3', height: '54%', value: '1.8k' },
+    { label: 'WK 4', height: '94%', value: '4.2k', active: true }, // Peak bar in green
+    { label: 'WK 5', height: '60%', value: '2.1k' },
+    { label: 'AUG',  height: '68%', value: '2.8k' },
   ];
 
   return (
@@ -86,20 +86,20 @@ export function QuixoticBarChartCard({ report }) {
           {/* Toggle pills matching image */}
           <div className="flex items-center bg-gray-100 rounded-full p-0.5 text-[11px] font-medium text-gray-500">
             <button
+              onClick={() => setRange('weekly')}
+              className={`px-3 py-1 rounded-full transition-colors cursor-pointer ${
+                range === 'weekly' ? 'bg-[#007A4D] text-white font-semibold' : 'hover:text-gray-900'
+              }`}
+            >
+              Weekly
+            </button>
+            <button
               onClick={() => setRange('monthly')}
               className={`px-3 py-1 rounded-full transition-colors cursor-pointer ${
                 range === 'monthly' ? 'bg-[#007A4D] text-white font-semibold' : 'hover:text-gray-900'
               }`}
             >
               Monthly
-            </button>
-            <button
-              onClick={() => setRange('annually')}
-              className={`px-3 py-1 rounded-full transition-colors cursor-pointer ${
-                range === 'annually' ? 'bg-[#007A4D] text-white font-semibold' : 'hover:text-gray-900'
-              }`}
-            >
-              Annually
             </button>
           </div>
           <ArrowUpRightIcon />
@@ -162,7 +162,7 @@ export function QuixoticBarChartCard({ report }) {
 }
 
 // ── CARD 3: Total Balance & Wave Area Chart ─────────────────────────────
-export function QuixoticBalanceCard({ summary, onRunAgent, isRunning, onToggleChat }) {
+export function QuixoticBalanceCard({ summary, onRunAgent, isRunning, onToggleChat, onExport }) {
   const totalBalance = summary?.totalIncome ? summary.totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '32,678.90';
 
   return (
@@ -209,22 +209,21 @@ export function QuixoticBalanceCard({ summary, onRunAgent, isRunning, onToggleCh
         </svg>
       </div>
 
-      {/* Send / Receive Pill Buttons matching image */}
+      {/* Action Pill Buttons matching image */}
       <div className="flex items-center gap-3 pt-2">
         <button
-          onClick={onRunAgent}
-          disabled={isRunning}
-          className="flex-1 bg-[#007A4D] hover:bg-[#006644] text-white py-2.5 rounded-full text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+          onClick={onExport || onRunAgent}
+          className="flex-1 bg-[#007A4D] hover:bg-[#006644] text-white py-2.5 rounded-full text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
         >
-          <span>Run Pipeline</span>
-          <span>↑</span>
+          <span>Export CSV</span>
+          <span>↓</span>
         </button>
         <button
           onClick={onToggleChat}
           className="flex-1 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 py-2.5 rounded-full text-xs font-semibold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <span>Settlement</span>
-          <span>↓</span>
+          <span>💬</span>
         </button>
       </div>
     </div>

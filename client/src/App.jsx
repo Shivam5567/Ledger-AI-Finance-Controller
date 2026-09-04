@@ -190,6 +190,7 @@ export default function App() {
                   onRunAgent={handleRunAgent}
                   isRunning={isRunning}
                   onToggleChat={() => setChatOpen(true)}
+                  onExport={exportCsv}
                 />
               </div>
 
