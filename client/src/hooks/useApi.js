@@ -195,7 +195,7 @@ export function useAction() {
   };
 }
 
-export function useDashboard({ startDate, endDate, interval = 'weekly' } = {}) {
+export function useDashboard({ startDate, endDate, interval = 'weekly', status = 'all' } = {}) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -209,6 +209,7 @@ export function useDashboard({ startDate, endDate, interval = 'weekly' } = {}) {
       if (startDate) params.set('startDate', startDate);
       if (endDate) params.set('endDate', endDate);
       if (interval) params.set('interval', interval);
+      if (status && status !== 'all') params.set('status', status);
 
       const res = await fetchJson(`/api/dashboard/summary?${params.toString()}`);
       setData(res);
@@ -220,7 +221,7 @@ export function useDashboard({ startDate, endDate, interval = 'weekly' } = {}) {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, interval]);
+  }, [startDate, endDate, interval, status]);
 
   return { data, loading, error, lastSyncedAt, refetch };
 }

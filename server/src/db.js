@@ -229,7 +229,7 @@ export function getReport() {
   };
 }
 
-export function getDashboardSummaryData({ startDate, endDate, interval = 'weekly' } = {}) {
+export function getDashboardSummaryData({ startDate, endDate, interval = 'weekly', status = 'all' } = {}) {
   // Determine date bounds
   let start = startDate;
   let end = endDate;
@@ -491,14 +491,27 @@ export function getDashboardSummaryData({ startDate, endDate, interval = 'weekly
   const durationSeconds = getMetadata('last_run_duration') || '0.2';
   const lastSyncedAt = new Date().toISOString();
 
+  // Filter transaction list by status if requested
+  let filteredTxs = allTxsInRange;
+  if (status === 'reconciled' || status === 'matched') {
+    filteredTxs = allTxsInRange.filter(t => t.match_status !== 'exception' && (!t.flags || t.flags.length === 0));
+  } else if (status === 'exceptions' || status === 'exception') {
+    filteredTxs = allTxsInRange.filter(t => t.match_status === 'exception' || (t.flags && t.flags.length > 0));
+  } else if (status === 'pending') {
+    filteredTxs = allTxsInRange.filter(t => t.action_status === 'pending');
+  }
+
   return {
     dateRange: { startDate: start, endDate: end },
     interval,
+    status,
     lastSyncedAt,
     ledger: {
-      position: netPosition,
+      openingBalance: 0,
       inflow: totalInflow,
       outflow: totalOutflow,
+      adjustments: 0,
+      position: netPosition,
       transactionCount: totalCount,
       matchedCount,
       exceptionCount,
@@ -534,8 +547,8 @@ export function getDashboardSummaryData({ startDate, endDate, interval = 'weekly
       },
       flaggedVendors,
     },
-    recentTransactions: allTxsInRange.slice(0, 6),
-    allTransactions: allTxsInRange,
+    recentTransactions: filteredTxs.slice(0, 6),
+    allTransactions: filteredTxs,
   };
 }
 

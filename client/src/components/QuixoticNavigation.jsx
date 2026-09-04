@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   LogoIcon,
   SearchIcon,
@@ -7,26 +7,25 @@ import {
   BarChartIcon,
   WalletIcon,
   TableListIcon,
-  CreditCardIcon,
   ChatBubbleIcon,
   ShieldAlertIcon,
   SettingsGearIcon,
-  ReloadIcon,
 } from './Icons';
 
-// ── 1. Top Navigation Bar (matching reference image) ───────────────────
+// ── 1. Top Navigation Bar (Single Clear Navigation Model) ───────────────
 export function QuixoticTopNav({
   activeTab,
   onSelectTab,
   exceptionCount = 0,
   onToggleChat,
-  onReload,
 }) {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard' },
-    { id: 'reports', label: 'Reports' },
     { id: 'transactions', label: 'Ledger' },
+    { id: 'reconciliation', label: 'Reconciliation' },
+    { id: 'settlements', label: 'Settlements' },
     { id: 'exceptions', label: 'Exceptions', badge: exceptionCount },
+    { id: 'reports', label: 'Reports' },
     { id: 'forecast', label: 'Forecast' },
     { id: 'settings', label: 'Settings' },
   ];
@@ -42,16 +41,16 @@ export function QuixoticTopNav({
       </div>
 
       {/* Center: Rounded Pill Navigation Menu */}
-      <nav className="hidden md:flex items-center gap-1 bg-white border border-gray-200/80 rounded-full px-2 py-1 shadow-xs">
+      <nav className="hidden xl:flex items-center gap-1 bg-white border border-gray-200/80 rounded-full px-2 py-1 shadow-xs">
         {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
+          const isActive = activeTab === tab.id || (tab.id === 'reconciliation' && activeTab === 'reports');
           return (
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
                 isActive
-                  ? 'bg-gray-100/80 text-gray-900 font-semibold shadow-xs'
+                  ? 'bg-gray-100/90 text-gray-900 font-semibold shadow-xs'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
               }`}
             >
@@ -108,15 +107,15 @@ export function QuixoticTopNav({
   );
 }
 
-// ── 2. Floating Left Pill Dock (With Icon Labels) ──────────────────────
-export function QuixoticDock({ activeTab, onSelectTab, onToggleChat, onReload, isReloading }) {
+// ── 2. Floating Left Pill Dock (Navigation-Only Model) ─────────────────
+export function QuixoticDock({ activeTab, onSelectTab, onToggleChat, exceptionCount = 0 }) {
   return (
     <aside className="hidden lg:flex flex-col gap-3 py-1 pr-3 select-none w-16">
-      {/* Pod 1: Primary Navigation */}
+      {/* Pod 1: Core Financial Operations */}
       <div className="pill-dock p-1.5 flex flex-col items-center gap-1.5">
         <button
           onClick={() => onSelectTab('dashboard')}
-          title="Dashboard"
+          title="Dashboard Overview"
           className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
             activeTab === 'dashboard'
               ? 'bg-[#007A4D] text-white shadow-sm'
@@ -128,16 +127,63 @@ export function QuixoticDock({ activeTab, onSelectTab, onToggleChat, onReload, i
         </button>
 
         <button
-          onClick={() => onSelectTab('reports')}
-          title="Reconciliation Reports"
+          onClick={() => onSelectTab('transactions')}
+          title="Ledger Transactions"
           className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'reports'
+            activeTab === 'transactions'
+              ? 'bg-[#007A4D] text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <TableListIcon className="w-4 h-4" />
+          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Ledger</span>
+        </button>
+
+        <button
+          onClick={() => onSelectTab('reconciliation')}
+          title="Reconciliation Center"
+          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+            activeTab === 'reconciliation' || activeTab === 'reports'
               ? 'bg-[#007A4D] text-white shadow-sm'
               : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
           }`}
         >
           <BarChartIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Reports</span>
+          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Reconcile</span>
+        </button>
+
+        <button
+          onClick={() => onSelectTab('settlements')}
+          title="Settlement Funds & Trajectory"
+          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+            activeTab === 'settlements'
+              ? 'bg-[#007A4D] text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <WalletIcon className="w-4 h-4" />
+          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Settlement</span>
+        </button>
+      </div>
+
+      {/* Pod 2: Exceptions, Intelligence & Forecast */}
+      <div className="pill-dock p-1.5 flex flex-col items-center gap-1.5">
+        <button
+          onClick={() => onSelectTab('exceptions')}
+          title="Exceptions & Flagged Items"
+          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer relative ${
+            activeTab === 'exceptions'
+              ? 'bg-[#007A4D] text-white shadow-sm'
+              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+          }`}
+        >
+          <div className="relative">
+            <ShieldAlertIcon className="w-4 h-4" />
+            {exceptionCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#DC2626]" />
+            )}
+          </div>
+          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Alerts</span>
         </button>
 
         <button
@@ -149,38 +195,13 @@ export function QuixoticDock({ activeTab, onSelectTab, onToggleChat, onReload, i
               : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
           }`}
         >
-          <WalletIcon className="w-4 h-4" />
+          <BarChartIcon className="w-4 h-4" />
           <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Forecast</span>
         </button>
 
         <button
-          onClick={() => onSelectTab('transactions')}
-          title="Transaction Ledger"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'transactions'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <TableListIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Ledger</span>
-        </button>
-      </div>
-
-      {/* Pod 2: Tools & Communication */}
-      <div className="pill-dock p-1.5 flex flex-col items-center gap-1.5">
-        <button
-          onClick={() => onSelectTab('transactions')}
-          title="Cards & Payments"
-          className="w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all cursor-pointer"
-        >
-          <CreditCardIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Cards</span>
-        </button>
-
-        <button
           onClick={onToggleChat}
-          title="Ledger Copilot"
+          title="Ledger Copilot Q&A"
           className="w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-[#007A4D] hover:bg-gray-100 transition-all cursor-pointer relative"
         >
           <div className="relative">
@@ -189,26 +210,13 @@ export function QuixoticDock({ activeTab, onSelectTab, onToggleChat, onReload, i
           </div>
           <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Copilot</span>
         </button>
-
-        <button
-          onClick={() => onSelectTab('exceptions')}
-          title="Exceptions & Flagged Items"
-          className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
-            activeTab === 'exceptions'
-              ? 'bg-[#007A4D] text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-          }`}
-        >
-          <ShieldAlertIcon className="w-4 h-4" />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Alerts</span>
-        </button>
       </div>
 
-      {/* Pod 3: Settings & Actions */}
+      {/* Pod 3: Settings */}
       <div className="pill-dock p-1.5 flex flex-col items-center gap-1.5">
         <button
           onClick={() => onSelectTab('settings')}
-          title="Settings"
+          title="System Settings"
           className={`w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
             activeTab === 'settings'
               ? 'bg-[#007A4D] text-white shadow-sm'
@@ -218,40 +226,36 @@ export function QuixoticDock({ activeTab, onSelectTab, onToggleChat, onReload, i
           <SettingsGearIcon className="w-4 h-4" />
           <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Config</span>
         </button>
-
-        <button
-          onClick={onReload}
-          disabled={isReloading}
-          title="Reload Transactions CSV"
-          className="w-12 py-1.5 px-1 rounded-2xl flex flex-col items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all cursor-pointer disabled:opacity-40"
-        >
-          <ReloadIcon className={`w-4 h-4 ${isReloading ? 'animate-spin' : ''}`} />
-          <span className="text-[9px] font-semibold tracking-tight mt-0.5 leading-none">Reload</span>
-        </button>
       </div>
     </aside>
   );
 }
 
-// ── 3. Header Greeting Row (Interactive Date Range + Live Sync + CTA) ──
+// ── 3. Header Greeting Row (Separate Date Range & Status Filters) ──────
 export function QuixoticHeaderRow({
   onRunAgent,
   isRunning,
   txCount = 55,
   onToggleChat,
-  dateRange = { startDate: '', endDate: '', label: 'All Transactions (01 Jul - 04 Aug, 2026)' },
+  dateRange = { startDate: '', endDate: '', label: '01 Jul – 04 Aug 2026' },
   onDateRangeChange,
+  statusFilter = 'all',
+  onStatusFilterChange,
   lastSyncedAt,
   onRefresh,
+  isRefreshing = false,
 }) {
-  const [dropdownOpen, setDropdownOpen] = React.useState(false);
-  const [customStart, setCustomStart]   = React.useState('2026-07-01');
-  const [customEnd, setCustomEnd]       = React.useState('2026-08-04');
-  const [syncLabel, setSyncLabel]       = React.useState('Just now');
-  const dropdownRef                     = React.useRef(null);
+  const [dateDropdownOpen, setDateDropdownOpen]     = useState(false);
+  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [customStart, setCustomStart]               = useState('2026-07-01');
+  const [customEnd, setCustomEnd]                   = useState('2026-08-04');
+  const [syncLabel, setSyncLabel]                   = useState('Just now');
+
+  const dateDropdownRef   = useRef(null);
+  const statusDropdownRef = useRef(null);
 
   // Auto-updating relative sync time
-  React.useEffect(() => {
+  useEffect(() => {
     const updateSyncTime = () => {
       if (!lastSyncedAt) {
         setSyncLabel('Just now');
@@ -269,43 +273,55 @@ export function QuixoticHeaderRow({
     return () => clearInterval(interval);
   }, [lastSyncedAt]);
 
-  // Click outside to close date dropdown
-  React.useEffect(() => {
+  // Click outside to close dropdowns
+  useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
+      if (dateDropdownRef.current && !dateDropdownRef.current.contains(e.target)) {
+        setDateDropdownOpen(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target)) {
+        setStatusDropdownOpen(false);
       }
     };
-    if (dropdownOpen) {
+    if (dateDropdownOpen || statusDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownOpen]);
+  }, [dateDropdownOpen, statusDropdownOpen]);
 
-  const presets = [
+  const datePresets = [
     {
-      label: 'All Transactions (01 Jul - 04 Aug, 2026)',
+      label: '01 Jul – 04 Aug 2026 (All)',
       startDate: '',
       endDate: '',
     },
     {
-      label: 'July 2026 (01 Jul - 31 Jul, 2026)',
+      label: 'July 2026 (01 – 31 Jul)',
       startDate: '2026-07-01',
       endDate: '2026-07-31',
     },
     {
-      label: 'August 2026 (01 Aug - 04 Aug, 2026)',
+      label: 'August 2026 (01 – 04 Aug)',
       startDate: '2026-08-01',
       endDate: '2026-08-04',
     },
     {
-      label: 'Last 14 Days (22 Jul - 04 Aug, 2026)',
+      label: 'Last 14 Days (22 Jul – 04 Aug)',
       startDate: '2026-07-22',
       endDate: '2026-08-04',
     },
   ];
 
-  const handleSelectPreset = (p) => {
+  const statusOptions = [
+    { id: 'all', label: 'All Transactions' },
+    { id: 'reconciled', label: '✓ Reconciled Only' },
+    { id: 'exceptions', label: '⚠ Exceptions Only' },
+    { id: 'pending', label: '🔒 Pending Authorization' },
+  ];
+
+  const currentStatusLabel = statusOptions.find(o => o.id === statusFilter)?.label || 'All Transactions';
+
+  const handleSelectDatePreset = (p) => {
     if (onDateRangeChange) {
       onDateRangeChange({
         startDate: p.startDate,
@@ -313,10 +329,10 @@ export function QuixoticHeaderRow({
         label: p.label,
       });
     }
-    setDropdownOpen(false);
+    setDateDropdownOpen(false);
   };
 
-  const handleApplyCustom = (e) => {
+  const handleApplyCustomDate = (e) => {
     e.preventDefault();
     if (!customStart || !customEnd) return;
     if (onDateRangeChange) {
@@ -326,12 +342,12 @@ export function QuixoticHeaderRow({
         label: `${customStart} to ${customEnd}`,
       });
     }
-    setDropdownOpen(false);
+    setDateDropdownOpen(false);
   };
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 py-2">
-      {/* Greeting Title & Live Sync Status */}
+      {/* Greeting Title & Live Status Indicator */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">
           Welcome Back, <span className="font-semibold text-gray-800">Controller</span>
@@ -346,46 +362,47 @@ export function QuixoticHeaderRow({
           {onRefresh && (
             <button
               onClick={onRefresh}
-              title="Refresh live metrics"
-              className="hover:text-emerald-700 transition-colors cursor-pointer text-[11px]"
+              disabled={isRefreshing}
+              title="Refresh dashboard data"
+              className="hover:text-emerald-700 transition-colors cursor-pointer text-xs ml-0.5 disabled:opacity-50"
             >
-              ↻
+              <span className={`inline-block ${isRefreshing ? 'animate-spin' : ''}`}>↻</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Right Controls: Interactive Date Range selector + Copilot + Action Button */}
-      <div className="flex flex-wrap items-center gap-3 relative">
-        {/* Date capsule with interactive dropdown */}
-        <div className="relative" ref={dropdownRef}>
+      {/* Right Controls: Separate Date Range + Status Filter + Copilot + Action Button */}
+      <div className="flex flex-wrap items-center gap-2.5 relative">
+        {/* 1. Date Range Capsule */}
+        <div className="relative" ref={dateDropdownRef}>
           <button
-            onClick={() => setDropdownOpen(prev => !prev)}
-            className="flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full px-4 py-2 text-xs font-medium text-gray-700 shadow-xs transition-all cursor-pointer"
-            title="Filter dashboard by date range"
+            onClick={() => setDateDropdownOpen(prev => !prev)}
+            className="flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full px-3.5 py-2 text-xs font-medium text-gray-700 shadow-xs transition-all cursor-pointer"
+            title="Filter by Date Range"
           >
             <span>📅</span>
             <span className="font-mono text-[11px] sm:text-xs">
-              {dateRange?.label || '01 Jul, 2026 - 04 Aug, 2026'}
+              {dateRange?.label || '01 Jul – 04 Aug 2026'}
             </span>
             <span className="text-gray-400 text-[10px] ml-0.5">
-              {dropdownOpen ? '▲' : '▼'}
+              {dateDropdownOpen ? '▲' : '▼'}
             </span>
           </button>
 
           {/* Date Picker Popover */}
-          {dropdownOpen && (
+          {dateDropdownOpen && (
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl border border-gray-200 shadow-xl p-4 z-40 animate-scale-up text-xs">
               <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 font-mono">
                 Date Range Presets
               </div>
-              <div className="flex flex-col gap-1 mb-4">
-                {presets.map((p) => {
+              <div className="flex flex-col gap-1 mb-3">
+                {datePresets.map((p) => {
                   const isSelected = dateRange?.startDate === p.startDate && dateRange?.endDate === p.endDate;
                   return (
                     <button
                       key={p.label}
-                      onClick={() => handleSelectPreset(p)}
+                      onClick={() => handleSelectDatePreset(p)}
                       className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-between cursor-pointer ${
                         isSelected
                           ? 'bg-emerald-50 text-[#007A4D] font-bold'
@@ -399,12 +416,12 @@ export function QuixoticHeaderRow({
                 })}
               </div>
 
-              {/* Custom Range Picker */}
+              {/* Custom Interval */}
               <div className="border-t border-gray-100 pt-3">
                 <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 font-mono">
                   Custom Interval
                 </div>
-                <form onSubmit={handleApplyCustom} className="flex flex-col gap-2">
+                <form onSubmit={handleApplyCustomDate} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="date"
@@ -424,9 +441,57 @@ export function QuixoticHeaderRow({
                     type="submit"
                     className="w-full py-2 rounded-xl bg-[#007A4D] hover:bg-[#00603C] text-white font-semibold text-xs transition-colors cursor-pointer shadow-xs"
                   >
-                    Apply Filter
+                    Apply Date Filter
                   </button>
                 </form>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 2. Separate Transaction Status Capsule */}
+        <div className="relative" ref={statusDropdownRef}>
+          <button
+            onClick={() => setStatusDropdownOpen(prev => !prev)}
+            className="flex items-center gap-1.5 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full px-3.5 py-2 text-xs font-medium text-gray-700 shadow-xs transition-all cursor-pointer"
+            title="Filter by Transaction Status"
+          >
+            <span>🏷️</span>
+            <span className="font-mono text-[11px] sm:text-xs">
+              {currentStatusLabel}
+            </span>
+            <span className="text-gray-400 text-[10px] ml-0.5">
+              {statusDropdownOpen ? '▲' : '▼'}
+            </span>
+          </button>
+
+          {/* Status Dropdown Popover */}
+          {statusDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl border border-gray-200 shadow-xl p-2 z-40 animate-scale-up text-xs">
+              <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-1.5 font-mono">
+                Transaction Status
+              </div>
+              <div className="flex flex-col gap-0.5">
+                {statusOptions.map((opt) => {
+                  const isSelected = statusFilter === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        if (onStatusFilterChange) onStatusFilterChange(opt.id);
+                        setStatusDropdownOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-between cursor-pointer ${
+                        isSelected
+                          ? 'bg-emerald-50 text-[#007A4D] font-bold'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {isSelected && <span>✓</span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -436,7 +501,7 @@ export function QuixoticHeaderRow({
         {onToggleChat && (
           <button
             onClick={onToggleChat}
-            className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200/90 rounded-full px-4 py-2 text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
+            className="flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200/90 rounded-full px-3.5 py-2 text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
           >
             <span>💬</span>
             <span>Ledger Copilot</span>
@@ -452,7 +517,7 @@ export function QuixoticHeaderRow({
           {isRunning ? (
             <>
               <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Reconciling Ledger…</span>
+              <span>Reconciling…</span>
             </>
           ) : (
             <>

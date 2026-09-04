@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.get('/summary', (req, res) => {
   try {
-    const { startDate, endDate, interval } = req.query;
+    const { startDate, endDate, interval, status } = req.query;
 
     // Validate dates if provided
     if (startDate && isNaN(Date.parse(startDate))) {
@@ -22,6 +22,7 @@ router.get('/summary', (req, res) => {
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       interval: interval === 'monthly' ? 'monthly' : 'weekly',
+      status: status || 'all',
     });
 
     res.json(summary);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { VendorBadge } from './Icons';
 
 const EXCEPTION_CONFIG = {
@@ -32,8 +32,18 @@ const EXCEPTION_CONFIG = {
   },
 };
 
-export default function ExceptionsPage({ transactions = [], onApprove, onDismiss }) {
+export default function ExceptionsPage({
+  transactions = [],
+  onApprove,
+  onDismiss,
+  initialFilter = 'all',
+}) {
   const [activeDraftId, setActiveDraftId] = useState(null);
+  const [selectedFilter, setSelectedFilter] = useState(initialFilter);
+
+  useEffect(() => {
+    if (initialFilter) setSelectedFilter(initialFilter);
+  }, [initialFilter]);
 
   const unresolvedExceptions = transactions.filter(
     (tx) =>
@@ -57,12 +67,15 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
     return acc;
   }, {});
 
-  const typeKeys = Object.keys(grouped);
+  const allTypeKeys = Object.keys(grouped);
+  const filteredTypeKeys = selectedFilter === 'all'
+    ? allTypeKeys
+    : allTypeKeys.filter(k => k === selectedFilter);
 
   return (
     <div className="w-full flex flex-col gap-6 animate-fade-in max-w-5xl">
       {/* Header */}
-      <div className="flex items-baseline justify-between border-b border-gray-200 pb-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-gray-200 pb-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
             Exceptions Queue
@@ -71,10 +84,38 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
             {unresolvedExceptions.length} items flagged for human review & authorization
           </p>
         </div>
-        {unresolvedExceptions.length === 0 && (
+
+        {unresolvedExceptions.length === 0 ? (
           <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-[#007A4D] border border-emerald-200">
             ✓ All exceptions resolved
           </span>
+        ) : (
+          /* Filter Pills */
+          <div className="flex flex-wrap items-center gap-1.5 bg-gray-100 p-1 rounded-full text-xs">
+            <button
+              onClick={() => setSelectedFilter('all')}
+              className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer ${
+                selectedFilter === 'all'
+                  ? 'bg-white text-gray-900 font-semibold shadow-2xs'
+                  : 'text-gray-500 hover:text-gray-900'
+              }`}
+            >
+              All ({unresolvedExceptions.length})
+            </button>
+            {allTypeKeys.map((k) => (
+              <button
+                key={k}
+                onClick={() => setSelectedFilter(k)}
+                className={`px-3 py-1 rounded-full font-medium transition-all cursor-pointer capitalize ${
+                  selectedFilter === k
+                    ? 'bg-white text-gray-900 font-semibold shadow-2xs'
+                    : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {k.replace(/_/g, ' ')} ({grouped[k]?.length || 0})
+              </button>
+            ))}
+          </div>
         )}
       </div>
 
@@ -88,8 +129,12 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
             Zero unresolved exceptions. Every transaction has been verified or settled.
           </p>
         </div>
+      ) : filteredTypeKeys.length === 0 ? (
+        <div className="quixotic-card p-8 text-center text-gray-500 text-xs">
+          No exceptions match the selected filter.
+        </div>
       ) : (
-        typeKeys.map((typeKey) => {
+        filteredTypeKeys.map((typeKey) => {
           const items = grouped[typeKey];
           const config = EXCEPTION_CONFIG[typeKey] || {
             title: typeKey.toUpperCase(),
@@ -147,20 +192,20 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
                           >
                             {formattedAmt}
                           </span>
-                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${config.badgeClass}`}>
+                          <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${config.badgeClass}`}>
                             {config.title}
                           </span>
                         </div>
                       </div>
 
                       {/* Plain-English Reason */}
-                      <p className="text-xs text-gray-600 mb-4 bg-gray-50 p-2.5 rounded-xl border border-gray-100 leading-relaxed">
+                      <p className="text-xs text-gray-700 mb-3.5 bg-gray-50/90 p-3 rounded-xl border border-gray-100 leading-relaxed font-medium">
                         {tx.exception_reason || tx.anomaly_explanation || 'Flagged for human confirmation.'}
                       </p>
 
                       {/* AI Draft preview */}
                       {isDraftOpen && tx.action_draft && (
-                        <div className="mb-4 p-4 rounded-xl bg-gray-900 text-white font-mono text-xs whitespace-pre-wrap leading-relaxed animate-fade-in shadow-inner">
+                        <div className="mb-4 p-4 rounded-xl bg-gray-900 text-white font-mono text-xs whitespace-pre-wrap leading-relaxed animate-fade-in shadow-inner select-text">
                           <div className="text-[10px] text-emerald-400 uppercase tracking-wider mb-2 font-sans font-bold">
                             🤖 AI Action Draft:
                           </div>
@@ -175,13 +220,13 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
                             onClick={() => onApprove(tx.id)}
                             className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all shadow-xs cursor-pointer"
                           >
-                            {config.actionLabel}
+                            ✓ {config.actionLabel}
                           </button>
                           <button
                             onClick={() => onDismiss(tx.id)}
                             className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 transition-all cursor-pointer"
                           >
-                            {config.actionSecondary}
+                            ✕ {config.actionSecondary}
                           </button>
                         </div>
 

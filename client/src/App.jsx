@@ -36,17 +36,20 @@ export default function App() {
   const [agentResult, setAgentResult]     = useState(null);
   const [chatOpen, setChatOpen]           = useState(false);
   const [reportData, setReportData]       = useState(null);
+  const [isRefreshing, setIsRefreshing]   = useState(false);
 
-  // Date range and interval filter state for unified dashboard
+  // Separate Date Range & Transaction Status filter state
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: '',
-    label: 'All Transactions (01 Jul - 04 Aug, 2026)',
+    label: '01 Jul – 04 Aug 2026',
   });
-  const [interval, setIntervalState] = useState('weekly');
+  const [statusFilter, setStatusFilter]         = useState('all');
+  const [interval, setIntervalState]             = useState('weekly');
+  const [exceptionsFilter, setExceptionsFilter] = useState('all');
 
   // Transaction Detail Modal state
-  const [selectedTx, setSelectedTx] = useState(null);
+  const [selectedTx, setSelectedTx]               = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const { transactions, refetch: refetchTx }     = useTransactions();
@@ -54,12 +57,14 @@ export default function App() {
   const {
     data: dashboardData,
     loading: isDashboardLoading,
+    error: dashboardError,
     lastSyncedAt,
     refetch: refetchDashboard,
   } = useDashboard({
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
     interval,
+    status: statusFilter,
   });
 
   const { ingest, loading: isIngesting }          = useIngest();
@@ -87,6 +92,15 @@ export default function App() {
       fetchReport(),
     ]);
   }, [refetchDashboard, refetchTx, refetchSummary, fetchReport]);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetchAll();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     refetchTx();
@@ -162,24 +176,31 @@ export default function App() {
           t.action_status !== 'dismissed'
       ).length;
 
+  // Transactions list honoring active date and status filters
+  const currentFilteredTransactions = dashboardData?.allTransactions || transactions;
+
   return (
     <Layout
       topnav={
         <QuixoticTopNav
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={(tab) => {
+            if (tab === 'exceptions') setExceptionsFilter('all');
+            setActiveTab(tab);
+          }}
           exceptionCount={unresolvedExceptionCount}
           onToggleChat={() => setChatOpen(prev => !prev)}
-          onReload={handleIngest}
         />
       }
       dock={
         <QuixoticDock
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={(tab) => {
+            if (tab === 'exceptions') setExceptionsFilter('all');
+            setActiveTab(tab);
+          }}
           onToggleChat={() => setChatOpen(prev => !prev)}
-          onReload={handleIngest}
-          isReloading={isIngesting}
+          exceptionCount={unresolvedExceptionCount}
         />
       }
       headerRow={
@@ -191,8 +212,11 @@ export default function App() {
             onToggleChat={() => setChatOpen(true)}
             dateRange={dateRange}
             onDateRangeChange={(newRange) => setDateRange(newRange)}
+            statusFilter={statusFilter}
+            onStatusFilterChange={(newStatus) => setStatusFilter(newStatus)}
             lastSyncedAt={lastSyncedAt}
-            onRefresh={refetchDashboard}
+            onRefresh={handleRefresh}
+            isRefreshing={isRefreshing}
           />
         )
       }
@@ -202,33 +226,60 @@ export default function App() {
         <EmptyState onIngest={handleIngest} isIngesting={isIngesting} />
       ) : (
         <div className="flex flex-col gap-6 animate-fade-in pb-12">
-          {/* ── Autonomous Thinking Trace Banner (during/after agent run) ── */}
+          {/* ── Error Banner (if API fetch fails) ── */}
+          {dashboardError && (
+            <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span>⚠️</span>
+                <span>Failed to load live dashboard data: {dashboardError}</span>
+              </div>
+              <button
+                onClick={refetchAll}
+                className="px-3 py-1 bg-white border border-red-300 rounded-full font-semibold hover:bg-red-100 transition-colors cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* ── Compact Collapsible AI Activity Panel ── */}
           {(isRunning || agentResult || agentStage) && (
             <AgentTraceInline
               currentStage={agentStage}
               isRunning={isRunning}
               agentResult={agentResult}
-              txCount={transactions.length || 55}
+              txCount={dashboardData?.ledger?.transactionCount ?? (transactions.length || 55)}
+              onViewAnomalies={() => {
+                setExceptionsFilter('spend_anomaly');
+                setActiveTab('exceptions');
+              }}
+              onViewActions={() => {
+                setExceptionsFilter('all');
+                setActiveTab('exceptions');
+              }}
             />
           )}
 
-          {/* ── Empty State for Selected Date Range with 0 Transactions ── */}
-          {dashboardData && dashboardData.ledger?.transactionCount === 0 && (
+          {/* ── Empty State for Selected Filter Range with 0 Transactions ── */}
+          {dashboardData && dashboardData.recentTransactions?.length === 0 && (
             <div className="p-6 rounded-2xl bg-amber-50/80 border border-amber-200 text-center flex flex-col items-center justify-center">
               <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-lg mb-2">
                 📅
               </div>
               <h4 className="text-sm font-bold text-amber-900 mb-1">
-                No transactions found for this date range
+                No transactions found for the selected filters
               </h4>
               <p className="text-xs text-amber-700 mb-3 max-w-md">
-                There are no ledger entries between {dateRange.startDate || 'start'} and {dateRange.endDate || 'end'}.
+                There are no ledger entries matching status "{statusFilter}" between {dateRange.startDate || 'start'} and {dateRange.endDate || 'end'}.
               </p>
               <button
-                onClick={() => setDateRange({ startDate: '', endDate: '', label: 'All Transactions (01 Jul - 04 Aug, 2026)' })}
+                onClick={() => {
+                  setDateRange({ startDate: '', endDate: '', label: '01 Jul – 04 Aug 2026' });
+                  setStatusFilter('all');
+                }}
                 className="px-4 py-2 rounded-full bg-white border border-amber-300 text-amber-800 text-xs font-semibold hover:bg-amber-100 transition-colors cursor-pointer shadow-xs"
               >
-                Reset to All Transactions
+                Reset All Filters
               </button>
             </div>
           )}
@@ -275,7 +326,7 @@ export default function App() {
                 <div className="lg:col-span-2">
                   <QuixoticPaymentHistoryCard
                     data={dashboardData}
-                    transactions={transactions}
+                    transactions={currentFilteredTransactions}
                     loading={isDashboardLoading}
                     onRowClick={(tx) => {
                       setSelectedTx(tx);
@@ -289,23 +340,111 @@ export default function App() {
                 <div className="lg:col-span-1">
                   <QuixoticCreditAndExceptionsCard
                     data={dashboardData}
-                    transactions={transactions}
+                    transactions={currentFilteredTransactions}
                     loading={isDashboardLoading}
-                    onViewExceptions={() => setActiveTab('exceptions')}
+                    onViewExceptions={() => {
+                      setExceptionsFilter('all');
+                      setActiveTab('exceptions');
+                    }}
                   />
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── VIEW: Reports ── */}
-          {activeTab === 'reports' && (
+          {/* ── VIEW: Reconciliation / Reports ── */}
+          {(activeTab === 'reports' || activeTab === 'reconciliation') && (
             <div className="flex flex-col gap-6 max-w-5xl">
               <ReportPanel
                 hasRunAgent={hasRunAgent}
-                onViewExceptions={() => setActiveTab('exceptions')}
+                onViewExceptions={() => {
+                  setExceptionsFilter('all');
+                  setActiveTab('exceptions');
+                }}
               />
               <ForecastCard summary={summary} />
+            </div>
+          )}
+
+          {/* ── VIEW: Settlements ── */}
+          {activeTab === 'settlements' && (
+            <div className="flex flex-col gap-6 max-w-5xl animate-fade-in">
+              <div className="quixotic-card p-6">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Settlement Trajectory</h2>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Verified inflow settlements vs authorizations in review
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => exportCsv({ startDate: dateRange.startDate, endDate: dateRange.endDate, status: 'matched' })}
+                    className="px-4 py-2 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs cursor-pointer"
+                  >
+                    Export Settlement Ledger CSV
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200">
+                    <span className="text-xs text-emerald-800 font-mono block">Verified Settlement</span>
+                    <span className="text-2xl font-bold text-[#007A4D] font-mono mt-1 block">
+                      ₹{(dashboardData?.settlement?.verifiedInflow ?? 177700).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200">
+                    <span className="text-xs text-gray-500 font-mono block">Total Inflow</span>
+                    <span className="text-2xl font-bold text-gray-900 font-mono mt-1 block">
+                      ₹{(dashboardData?.ledger?.inflow ?? 226500).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200">
+                    <span className="text-xs text-amber-800 font-mono block">Pending Authorization</span>
+                    <span className="text-2xl font-bold text-amber-800 font-mono mt-1 block">
+                      ₹{(dashboardData?.settlement?.pendingSettlement ?? 48800).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400 font-mono mb-3">
+                  Settlement Inflow Activity
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs font-mono">
+                    <thead>
+                      <tr className="text-gray-400 border-b border-gray-100 pb-2">
+                        <th className="pb-2.5">Date</th>
+                        <th className="pb-2.5">Description</th>
+                        <th className="pb-2.5">Status</th>
+                        <th className="pb-2.5 text-right">Inflow Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {currentFilteredTransactions.filter(t => t.type === 'income').map(t => {
+                        const isExc = t.match_status === 'exception' || (t.flags && t.flags.length > 0);
+                        return (
+                          <tr key={t.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => { setSelectedTx(t); setIsDetailModalOpen(true); }}>
+                            <td className="py-2.5 text-gray-600">{t.date}</td>
+                            <td className="py-2.5 font-sans font-semibold text-gray-900">{t.description}</td>
+                            <td className="py-2.5">
+                              {isExc ? (
+                                <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold">
+                                  Pending Authorization
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">
+                                  Verified Settlement
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 text-right font-bold text-gray-900">+₹{t.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
@@ -313,7 +452,7 @@ export default function App() {
           {activeTab === 'transactions' && (
             <div className="animate-fade-in">
               <TransactionTable
-                transactions={transactions}
+                transactions={currentFilteredTransactions}
                 onApprove={handleApprove}
                 onDismiss={handleDismiss}
                 onReset={handleReset}
@@ -324,9 +463,10 @@ export default function App() {
           {/* ── VIEW: Exceptions Queue ── */}
           {activeTab === 'exceptions' && (
             <ExceptionsPage
-              transactions={transactions}
+              transactions={currentFilteredTransactions}
               onApprove={handleApprove}
               onDismiss={handleDismiss}
+              initialFilter={exceptionsFilter}
             />
           )}
 
