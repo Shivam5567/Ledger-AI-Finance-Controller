@@ -20,7 +20,7 @@ export function parseCsvFile(filePath) {
     parsedRecords.push({
       date: record.date,
       description: record.description,
-      amount: parseFloat(record.amount),
+      amount: Math.abs(parseFloat(record.amount)),
       type: record.type,
       invoice_ref: record.invoice_ref || null,
       flags: [],
