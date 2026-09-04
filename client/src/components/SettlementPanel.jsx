@@ -42,7 +42,7 @@ export default function SettlementPanel({ isOpen, onClose }) {
             💬
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900">Settlement Q&A</h3>
+            <h3 className="text-sm font-bold text-gray-900">Ledger Copilot</h3>
             <p className="text-[11px] text-gray-400">Autonomous Financial Intelligence</p>
           </div>
         </div>

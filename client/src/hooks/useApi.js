@@ -195,11 +195,47 @@ export function useAction() {
   };
 }
 
+export function useDashboard({ startDate, endDate, interval = 'weekly' } = {}) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      if (interval) params.set('interval', interval);
+
+      const res = await fetchJson(`/api/dashboard/summary?${params.toString()}`);
+      setData(res);
+      setLastSyncedAt(new Date());
+      return res;
+    } catch (err) {
+      console.error('Failed to fetch dashboard data:', err);
+      setError(err.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, [startDate, endDate, interval]);
+
+  return { data, loading, error, lastSyncedAt, refetch };
+}
+
 export function useExport() {
-  const exportCsv = () => {
+  const exportCsv = ({ startDate, endDate, status } = {}) => {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (status) params.set('status', status);
+
+    const qs = params.toString();
     const link = document.createElement('a');
-    link.href = '/api/export';
-    link.download = 'ledger-export.csv';
+    link.href = `/api/export${qs ? `?${qs}` : ''}`;
+    link.download = `ledger-export${status ? `-${status}` : ''}.csv`;
     link.click();
   };
   return { exportCsv };
