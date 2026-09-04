@@ -42,26 +42,32 @@ Here is how Ledger AI directly fulfills each benchmark:
 ## Visual Walkthrough
 
 ### 1. Executive Finance Controller Dashboard
-![Finance Controller Dashboard](docs/screenshots/dashboard.png)
-*Figure 1: Real-time visibility into net cash position (-₹34,078.00), 83.6% reconciliation rate across 55 transactions, verified settlement funds (₹1,77,700.00), and controller activity summary.*
+[![Finance Controller Dashboard](docs/screenshots/dashboard.png)](docs/screenshots/dashboard.png)
+*Figure 1: Real-time visibility into net cash position (-₹34,078.00), 83.6% reconciliation rate across 55 transactions, verified settlement funds (₹1,77,700.00), and controller activity summary. (Click to expand high-res)*
 
 ---
 
 ### 2. Autonomous AI Reconciliation Pipeline & Exceptions Queue
-![AI Reconciliation Pipeline and Exceptions Queue](docs/screenshots/pipeline-queue.png)
-*Figure 2: Multi-agent execution trace across 55 ingested transactions, verifying 46 matches and isolating 9 unresolvable edge cases categorized into Missing Invoices, Duplicate Payments, and Spend Anomalies.*
+[![AI Reconciliation Pipeline and Exceptions Queue](docs/screenshots/pipeline-queue.png)](docs/screenshots/pipeline-queue.png)
+*Figure 2: Multi-agent execution trace across 55 ingested transactions, verifying 46 matches and isolating 9 unresolvable edge cases categorized into Missing Invoices, Duplicate Payments, and Spend Anomalies. (Click to expand high-res)*
 
 ---
 
 ### 3. Honest Exception Review & AI Action Drafting
-![Honest Exception Review and Action Draft](docs/screenshots/exception-action.png)
-*Figure 3: Contextual anomaly diagnosis (e.g., AWS Infrastructure 3.3x spend surge) paired with an automated, pre-drafted budget review memo ready for 1-click human-in-the-loop controller approval.*
+[![Honest Exception Review and Action Draft](docs/screenshots/exception-action.png)](docs/screenshots/exception-action.png)
+*Figure 3: Contextual anomaly diagnosis (e.g., AWS Infrastructure 3.3x spend surge) paired with an automated, pre-drafted budget review memo ready for 1-click human-in-the-loop controller approval. (Click to expand high-res)*
 
 ---
 
-### 4. Transparent Discrepancy Register & Predictive Spend Forecast
-![Discrepancy Register and Spend Forecast](docs/screenshots/audit-register-forecast.png)
-*Figure 4: Audit register listing edge cases with plain-language explanations, alongside an automated run-rate predictive spend model projecting monthly operational burn (₹78,700).*
+### 4. Interactive Settlement Q&A Copilot ("Ask Copilot")
+[![Interactive Settlement QA Copilot](docs/screenshots/copilot-chat.png)](docs/screenshots/copilot-chat.png)
+*Figure 4: Streaming conversational Copilot drawer grounded in ledger state, performing live root-cause interrogation on transaction #16 (AWS emergency scaling) with actionable recommendations. (Click to expand high-res)*
+
+---
+
+### 5. Transparent Discrepancy Register & Predictive Spend Forecast
+[![Discrepancy Register and Spend Forecast](docs/screenshots/audit-register-forecast.png)](docs/screenshots/audit-register-forecast.png)
+*Figure 5: Audit register listing edge cases with plain-language explanations, alongside an automated run-rate predictive spend model projecting monthly operational burn (₹78,700). (Click to expand high-res)*
 
 ---
 
