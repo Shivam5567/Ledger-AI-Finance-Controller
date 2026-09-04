@@ -415,6 +415,9 @@ export function getDashboardSummaryData({ startDate, endDate, interval = 'weekly
   }
 
   // Time-Series Reconciliation Chart
+  const latestRun = getLatestReconciliationRun(start, end);
+  const isAnalyzed = !!latestRun && latestRun.status === 'COMPLETED';
+
   let chartData = [];
   if (interval === 'monthly') {
     const monthMap = {};
@@ -600,9 +603,6 @@ export function getDashboardSummaryData({ startDate, endDate, interval = 'weekly
   }
 
   const flaggedVendors = Array.from(vendorMap.values());
-
-  const latestRun = getLatestReconciliationRun(start, end);
-  const isAnalyzed = !!latestRun && latestRun.status === 'COMPLETED';
 
   const durationSeconds = latestRun ? latestRun.duration_seconds : (getMetadata('last_run_duration') || '0.2');
   const lastSyncedAt = new Date().toISOString();
