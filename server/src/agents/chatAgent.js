@@ -1,36 +1,93 @@
-import { getModel, hasValidApiKey } from '../utils/gemini.js';
-import { getSummary, getAllTransactions } from '../db.js';
+import { callLLM, callLLMStream, extractText, extractToolCalls, hasValidApiKey } from '../utils/llm.js';
+import { getSummary, getAllTransactions, getTransactionsByFilter } from '../db.js';
 
 // ---------------------------------------------------------------------------
-// Build a rich context snapshot from live DB data, injected into the prompt
+// Tool definitions (OpenAI-style, Groq-compatible)
 // ---------------------------------------------------------------------------
-function buildDataContext() {
-  const allTx  = getAllTransactions();
-  const summary = getSummary();
+const TOOLS = [
+  {
+    type: 'function',
+    function: {
+      name: 'query_transactions',
+      description: 'Query the live transaction database to answer finance questions. Use this to get exact totals, counts, and lists.',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: {
+            type: 'string',
+            description: 'Filter by category (e.g. "payroll", "cloud/infra", "marketing", "software", "rent", "client_income", "refund")',
+          },
+          type: {
+            type: 'string',
+            enum: ['income', 'expense', 'refund'],
+            description: 'Filter by transaction type',
+          },
+          hasFlag: {
+            type: 'boolean',
+            description: 'If true, return only flagged transactions',
+          },
+          aggregate: {
+            type: 'string',
+            enum: ['sum', 'count', 'list'],
+            description: 'What to compute: sum of amounts, count of transactions, or full list',
+          },
+        },
+        required: ['aggregate'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_summary',
+      description: 'Get the high-level financial summary: total income, total expenses, net position, flagged count, and spend by category.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+];
 
-  const fmt = (n) => n.toLocaleString('en-US', { minimumFractionDigits: 2 });
+// ---------------------------------------------------------------------------
+// Execute a tool call against the live SQLite DB
+// ---------------------------------------------------------------------------
+function executeTool(name, args) {
+  const fmt = (n) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
-  const txLines = allTx.map(t =>
-    `  [${t.date}] ${t.type.toUpperCase()} | ${t.description} | ` +
-    `$${fmt(t.amount)} | cat:${t.category || 'uncategorized'} | ` +
-    `flags:[${(t.flags || []).join(',')}]`
-  ).join('\n');
+  if (name === 'get_summary') {
+    const s = getSummary();
+    return {
+      totalIncome:    fmt(s.totalIncome),
+      totalExpenses:  fmt(s.totalExpenses),
+      netPosition:    fmt(s.net),
+      flaggedCount:   s.flaggedCount,
+      byCategory:     (s.byCategory || []).map(c => ({ category: c.category, total: fmt(c.total) })),
+    };
+  }
 
-  const catLines = (summary.byCategory || [])
-    .map(c => `  ${c.category}: $${fmt(c.total)}`)
-    .join('\n');
+  if (name === 'query_transactions') {
+    const filter = {};
+    if (args.category) filter.category = args.category;
+    if (args.type)     filter.type     = args.type;
+    if (args.hasFlag)  filter.hasFlag  = args.hasFlag;
 
-  return `LIVE LEDGER DATA (as of now):
-Total Income   : $${fmt(summary.totalIncome)}
-Total Expenses : $${fmt(summary.totalExpenses)}
-Net Position   : $${fmt(summary.net)}
-Flagged Items  : ${summary.flaggedCount}
+    let txs = getTransactionsByFilter(filter);
 
-Spend by Category:
-${catLines || '  (none yet)'}
+    if (args.aggregate === 'count') return { count: txs.length };
+    if (args.aggregate === 'sum') {
+      const total = txs.reduce((s, t) => s + t.amount, 0);
+      return { total: fmt(total), count: txs.length };
+    }
+    if (args.aggregate === 'list') {
+      return txs.slice(0, 20).map(t => ({
+        date:        t.date,
+        description: t.description,
+        amount:      fmt(t.amount),
+        category:    t.category,
+        flags:       t.flags,
+      }));
+    }
+  }
 
-All Transactions (${allTx.length}):
-${txLines || '  (no transactions ingested yet)'}`;
+  return { error: 'Unknown tool' };
 }
 
 // ---------------------------------------------------------------------------
@@ -52,91 +109,39 @@ function getFallbackAnswer(message) {
   if (q.includes('payroll') || q.includes('salary') || q.includes('wages')) {
     const txs   = expensesByCategory('payroll', 'payroll');
     const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Payroll total: **$${fmt(total)}** across ${txs.length} payment cycles (engineering & marketing teams).`;
+    return `Payroll total: **$${fmt(total)}** across ${txs.length} payment cycles.`;
   }
-
-  if (q.includes('cloud') || q.includes('aws') || q.includes('infra') || q.includes('server')) {
+  if (q.includes('cloud') || q.includes('aws') || q.includes('infra')) {
     const txs   = expensesByCategory('cloud/infra', 'aws');
     const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Cloud / infrastructure spend: **$${fmt(total)}** across ${txs.length} transactions. Includes a spike charge of $7,800 on Jan 25 (flagged as anomaly).`;
+    return `Cloud/infra spend: **$${fmt(total)}** across ${txs.length} transactions.`;
   }
-
-  if (q.includes('marketing') || q.includes('ads') || q.includes('advertising') || q.includes('facebook')) {
-    const txs   = expensesByCategory('marketing', 'ads');
-    const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Marketing / ads spend: **$${fmt(total)}** across ${txs.length} campaigns.`;
-  }
-
-  if (q.includes('software') || q.includes('saas') || q.includes('subscri')) {
-    const txs   = expensesByCategory('software');
-    const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Software subscriptions: **$${fmt(total)}** across ${txs.length} tools.`;
-  }
-
-  if (q.includes('rent') || q.includes('office')) {
-    const txs   = expensesByCategory('rent', 'rent');
-    const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Office / rent spend: **$${fmt(total)}** across ${txs.length} payments.`;
-  }
-
-  if (q.includes('duplicate') || q.includes('double') || q.includes('repeat')) {
+  if (q.includes('duplicate') || q.includes('double')) {
     const dupes = allTx.filter(t => t.flags && (t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice')));
-    if (!dupes.length) return 'No duplicate payments were detected.';
+    if (!dupes.length) return 'No duplicate payments detected.';
     const list = dupes.map(d => `- **${d.description}** ($${fmt(d.amount)}) on ${d.date}`).join('\n');
-    return `**${dupes.length} duplicate entries** detected:\n${list}\n\nRefund request notes have been drafted for these.`;
+    return `**${dupes.length} duplicate entries** detected:\n${list}`;
   }
-
-  if (q.includes('unmatched') || q.includes('invoice') || q.includes('missing')) {
-    const um = allTx.filter(t => t.flags && t.flags.includes('unmatched_invoice'));
-    if (!um.length) return 'All income payments have valid invoice references.';
-    const list = um.map(u => `- **${u.description}** ($${fmt(u.amount)}) on ${u.date}`).join('\n');
-    return `**${um.length} unmatched income payment(s)** missing an invoice ref:\n${list}\n\nPayment reminder emails have been drafted.`;
-  }
-
-  if (q.includes('biggest') || q.includes('largest') || q.includes('top') || q.includes('most')) {
+  if (q.includes('biggest') || q.includes('largest') || q.includes('top')) {
     if (summary.byCategory?.length) {
-      const top    = summary.byCategory[0];
-      const second = summary.byCategory[1];
-      return `Biggest expense category: **${top.category}** ($${fmt(top.total)})` +
-             (second ? `, followed by **${second.category}** ($${fmt(second.total)}).` : '.');
+      const top = summary.byCategory[0];
+      return `Biggest expense category: **${top.category}** ($${fmt(top.total)}).`;
     }
   }
-
-  if (q.includes('flagged') || q.includes('anomal') || q.includes('issue')) {
-    const flagged = allTx.filter(t => t.flags && t.flags.length > 0);
-    if (!flagged.length) return 'No flagged transactions found.';
-    const list = flagged.slice(0, 5).map(t => `- **${t.description}** (${t.flags.join(', ')})`).join('\n');
-    return `**${flagged.length} flagged transactions** requiring attention:\n${list}`;
-  }
-
-  if (q.includes('income') || q.includes('revenue') || q.includes('earning')) {
-    const txs   = allTx.filter(t => t.type === 'income');
-    const total = txs.reduce((s, t) => s + t.amount, 0);
-    return `Total income: **$${fmt(total)}** across ${txs.length} payments received.`;
-  }
-
-  // General finance question — answer using the live data summary
   if (allTx.length === 0) {
-    return 'No transaction data is loaded yet. Please click **Load Transactions** and then **Run AI Agent** first.';
+    return 'No transaction data loaded yet. Please click **Load Transactions** and then **Run AI Agent** first.';
   }
-
-  return `**Ledger AI Financial Summary**
-- **Total Income:** $${fmt(summary.totalIncome)}
-- **Total Expenses:** $${fmt(summary.totalExpenses)}
-- **Net Position:** $${fmt(summary.net)}
-- **Flagged Items:** ${summary.flaggedCount} transaction(s) need review (duplicates, anomalies, missing invoices)
-
-For specific questions, try: "How much did we spend on payroll?", "Are there any duplicate payments?", or "What is our biggest expense?"`;
+  return `**Ledger Summary**\n- Income: $${fmt(summary.totalIncome)}\n- Expenses: $${fmt(summary.totalExpenses)}\n- Net: $${fmt(summary.net)}\n- Flagged: ${summary.flaggedCount} items`;
 }
 
 // ---------------------------------------------------------------------------
-// Streamed word-by-word helper
+// Streamed word-by-word helper (for local fallback)
 // ---------------------------------------------------------------------------
 async function streamText(text, res) {
   const words = text.split(' ');
   for (const word of words) {
     res.write(`data: ${JSON.stringify({ type: 'token', text: word + ' ' })}\n\n`);
-    await new Promise(r => setTimeout(r, 15));
+    await new Promise(r => setTimeout(r, 12));
   }
 }
 
@@ -144,10 +149,7 @@ async function streamText(text, res) {
 // Main export
 // ---------------------------------------------------------------------------
 export async function handleChatMessage(message, res) {
-  // ── Flush SSE headers immediately ─────────────────────────────────────────
-  // res.headersSent only becomes true after the first res.write() / res.end(),
-  // NOT after res.setHeader(). Calling flushHeaders() physically sends the HTTP
-  // 200 + headers right now, ensuring HTTP 500 can never be returned after this.
+  // Flush SSE headers immediately to prevent HTTP 500 on async errors
   if (!res.headersSent) {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -155,58 +157,94 @@ export async function handleChatMessage(message, res) {
     res.flushHeaders();
   }
 
-  // Safe fallback sender — won't throw even if db is empty
   const sendFallback = async (msg) => {
-    try {
-      await streamText(getFallbackAnswer(msg), res);
-    } catch (_) {
-      res.write(`data: ${JSON.stringify({ type: 'token', text: 'Sorry, I encountered an error. Please try again.' })}\n\n`);
-    }
+    try { await streamText(getFallbackAnswer(msg), res); }
+    catch (_) { res.write(`data: ${JSON.stringify({ type: 'token', text: 'Sorry, I encountered an error.' })}\n\n`); }
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
   };
 
-  // ── No API key → instant local answer ────────────────────────────────────
+  // No API key → instant local answer
   if (!hasValidApiKey()) {
     console.log('[ChatAgent] No API key. Using local assistant.');
     await sendFallback(message);
     return;
   }
 
-  // ── Gemini direct-prompt approach ─────────────────────────────────────────
-  // We inject the live transaction data directly into the prompt instead of
-  // using function-calling tools (which some model variants don't support).
   try {
-    const dataContext = buildDataContext();
+    const systemPrompt = `You are a financial analyst assistant for Ledger AI.
+Use the query_transactions or get_summary tools to fetch exact numbers from the live database.
+Always provide specific amounts and counts — never estimates.
+Format answers with markdown (bold for key numbers, bullet points for lists).
+Be concise and factual. If the question isn't about finance, politely redirect.`;
 
-    const prompt =
-      `You are a financial analyst assistant for Ledger AI.\n` +
-      `Use ONLY the live data below to answer the user's question. ` +
-      `Be concise, factual, and use specific numbers from the data. ` +
-      `Use markdown for formatting (bold for numbers, bullet points for lists). ` +
-      `If the question is about something not in the data, say so clearly.\n\n` +
-      `${dataContext}\n\n` +
-      `USER QUESTION: ${message}`;
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: message },
+    ];
 
-    const model  = getModel();
-    const result = await model.generateContentStream(prompt);
+    // ── First call: let model decide whether it needs a tool ────────────────
+    const firstResponse = await callLLM(null, { model: 'smart', messages, tools: TOOLS });
+    const toolCalls     = extractToolCalls(firstResponse);
 
-    for await (const chunk of result.stream) {
+    if (toolCalls.length > 0) {
+      // ── Tool call: execute against SQLite, send result back ───────────────
+      res.write(`data: ${JSON.stringify({ type: 'tool_call_start' })}\n\n`);
+
+      const toolCall = toolCalls[0]; // handle first tool call
+      let toolResult;
       try {
-        const text = chunk.text();
+        const args = JSON.parse(toolCall.function.arguments);
+        toolResult = executeTool(toolCall.function.name, args);
+        console.log(`[ChatAgent] Tool "${toolCall.function.name}" executed — ${JSON.stringify(args)}`);
+      } catch (e) {
+        toolResult = { error: `Tool execution failed: ${e.message}` };
+      }
+
+      res.write(`data: ${JSON.stringify({ type: 'tool_call_result' })}\n\n`);
+
+      // Build follow-up messages with tool result
+      const followUpMessages = [
+        ...messages,
+        firstResponse.choices[0].message,  // assistant message containing the tool call
+        {
+          role:         'tool',
+          tool_call_id: toolCall.id,
+          content:      JSON.stringify(toolResult),
+        },
+      ];
+
+      // ── Second call: stream the final answer ─────────────────────────────
+      const stream = await callLLMStream(null, { model: 'smart', messages: followUpMessages });
+      for await (const chunk of stream) {
+        const text = chunk.choices[0]?.delta?.content || '';
         if (text) res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
-      } catch (_) { /* metadata-only chunk */ }
+      }
+
+    } else {
+      // ── No tool needed: stream the direct answer ─────────────────────────
+      const directText = extractText(firstResponse);
+      if (directText) {
+        // Stream word-by-word for smooth UX
+        await streamText(directText, res);
+      } else {
+        // Model didn't use a tool and returned nothing — run streaming directly
+        const stream = await callLLMStream(null, { model: 'smart', messages });
+        for await (const chunk of stream) {
+          const text = chunk.choices[0]?.delta?.content || '';
+          if (text) res.write(`data: ${JSON.stringify({ type: 'token', text })}\n\n`);
+        }
+      }
     }
 
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
 
   } catch (error) {
-    const is429 = error.status === 429 || (error.message && error.message.includes('429'));
-    if (is429) {
-      console.log('[ChatAgent] Quota exhausted. Using local assistant.');
+    if (error.status === 429) {
+      console.log('[ChatAgent] Rate limit. Using local assistant.');
     } else {
-      console.error('[ChatAgent] Gemini error:', error.message);
+      console.error('[ChatAgent] LLM error:', error.message);
     }
     await sendFallback(message);
   }

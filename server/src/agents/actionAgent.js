@@ -1,5 +1,5 @@
 import { updateTransaction } from '../db.js';
-import { callGemini, hasValidApiKey } from '../utils/gemini.js';
+import { callLLM, extractText, safeParseJSON, hasValidApiKey } from '../utils/llm.js';
 
 // ---------------------------------------------------------------------------
 // Template drafts (used when API is unavailable or quota is exhausted)
@@ -23,9 +23,7 @@ Ledger AI Controller`;
 }
 
 function makeRefundRequestDraft(tx) {
-  const flagDetail = tx.flags.includes('duplicate_invoice')
-    ? 'duplicate_invoice'
-    : 'duplicate';
+  const flagDetail = tx.flags.includes('duplicate_invoice') ? 'duplicate_invoice' : 'duplicate';
   return `Subject: Duplicate Payment Detected — Refund Request
 
 Hi Team,
@@ -51,19 +49,18 @@ export async function generateActions(transactions) {
   const flagged = transactions.filter(t => t.flags && t.flags.length > 0);
   if (flagged.length === 0) return transactions;
 
-  // Assign action_type and build fallback draft for each flagged transaction
+  // Assign action_type and pre-compute fallback drafts
   for (const tx of flagged) {
     if (!tx.action_type) {
       if (tx.flags.includes('unmatched_invoice')) {
-        tx.action_type  = 'reminder_email';
+        tx.action_type = 'reminder_email';
       } else if (tx.flags.includes('duplicate') || tx.flags.includes('duplicate_invoice')) {
-        tx.action_type  = 'refund_request';
+        tx.action_type = 'refund_request';
       } else if (tx.flags.includes('anomaly')) {
-        tx.action_type  = 'anomaly_explanation';
+        tx.action_type = 'anomaly_explanation';
       }
     }
 
-    // Pre-compute fallback drafts (used if AI call fails or is skipped)
     if (!tx._fallbackDraft) {
       if (tx.action_type === 'reminder_email') {
         tx._fallbackDraft = makeReminderEmailDraft(tx);
@@ -87,28 +84,28 @@ Ledger AI — Automated Anomaly Detection`;
     }
   }
 
-  // ── AI batch draft generation ─────────────────────────────────────────────
-  // Only generate for items that need an email/refund note AND don't already have a draft
+  // ── Batch AI draft generation ────────────────────────────────────────────
   const needsDraft = flagged.filter(
     t => (t.action_type === 'reminder_email' || t.action_type === 'refund_request') && !t.action_draft
   );
 
   if (needsDraft.length > 0 && hasValidApiKey()) {
-    console.log(`[ActionAgent] Running batched Gemini action drafts for ${needsDraft.length} flagged items (1 API call)...`);
+    console.log(`[ActionAgent] Running batched action drafts for ${needsDraft.length} flagged items (1 API call)...`);
 
     const promptList = JSON.stringify(needsDraft.map(t => ({
-      id: t.id,
+      id:          t.id,
       description: t.description,
-      amount: t.amount,
-      flag_type: t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice') ? 'duplicate' : 'unmatched_invoice',
-      date: t.date
+      amount:      t.amount,
+      flag_type:   t.flags.includes('duplicate') || t.flags.includes('duplicate_invoice')
+                     ? 'duplicate'
+                     : 'unmatched_invoice',
+      date:        t.date,
     })), null, 2);
 
     const prompt = `Write an action draft for each flagged transaction.
 Use the flag_type to determine the draft format:
 - duplicate → refund request note (internal)
 - unmatched_invoice → payment reminder email (to client)
-- anomaly → internal spend alert (to finance team)
 
 Include the actual description, amount, and date in every draft.
 Make it sound like a real finance team wrote it, not a template.
@@ -117,38 +114,29 @@ Flagged transactions:
 ${promptList}
 
 Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
-[{"id": 3, "draft": "Subject: Duplicate Payment — Facebook Ads...\\n\\nHi Team,\\n..."}]`;
+[{"id": 3, "draft": "Subject: Duplicate Payment — ...\\n\\nHi Team,\\n..."}]`;
 
     try {
-      const results = await callGemini(prompt, { json: true });
+      const response = await callLLM(prompt, { model: 'smart' });
+      const raw      = extractText(response);
+      const results  = safeParseJSON(raw);
       if (Array.isArray(results)) {
         for (const item of results) {
           const tx = needsDraft.find(t => t.id === item.id || t.id === Number(item.id));
-          if (tx && item.draft) {
-            tx.action_draft = item.draft.trim();
-          }
+          if (tx && item.draft) tx.action_draft = item.draft.trim();
         }
       }
     } catch (err) {
-      if (err.message === 'RATE_LIMIT') {
-        console.log('[ActionAgent] Quota exhausted. Using template drafts.');
-      } else if (err.message !== 'NO_KEY') {
-        console.error('[ActionAgent] Gemini draft error, using templates:', err.message);
-      }
+      if (err.status === 429) console.log('[ActionAgent] Rate limit. Using template drafts.');
+      else                    console.error('[ActionAgent] LLM draft error, using templates:', err.message);
     }
   }
 
-  // Persist final state for all flagged items
+  // Persist final state
   for (const tx of flagged) {
-    if (!tx.action_draft) {
-      tx.action_draft = tx._fallbackDraft;
-    }
+    if (!tx.action_draft) tx.action_draft = tx._fallbackDraft;
     delete tx._fallbackDraft;
-
-    if (!tx.action_status || tx.action_status === 'none') {
-      tx.action_status = 'pending';
-    }
-
+    if (!tx.action_status || tx.action_status === 'none') tx.action_status = 'pending';
     updateTransaction(tx.id, {
       action_type:   tx.action_type,
       action_draft:  tx.action_draft,

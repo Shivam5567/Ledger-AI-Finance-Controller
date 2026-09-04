@@ -4,7 +4,7 @@ import { categorizeTransactions } from '../agents/categorizer.js';
 import { reconcileTransactions } from '../agents/reconciler.js';
 import { detectAnomalies } from '../agents/anomaly.js';
 import { generateActions } from '../agents/actionAgent.js';
-import { resetCallCount, getCallCount } from '../utils/gemini.js';
+import { resetCallCount, getCallCount } from '../utils/llm.js';
 
 const router = express.Router();
 
@@ -51,7 +51,7 @@ router.post('/run', async (req, res) => {
     const unmatched = finalTxs.filter(t => t.flags && t.flags.includes('unmatched_invoice')).length;
 
     const geminiCallCount = getCallCount();
-    console.log(`[Pipeline] Complete — ${geminiCallCount} Gemini API calls used`);
+    console.log(`[Pipeline] Complete — ${geminiCallCount} Groq API calls used`);
 
     // Save last reviewed timestamp
     setMetadata('last_reviewed_at', new Date().toISOString());

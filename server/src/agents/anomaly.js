@@ -1,20 +1,22 @@
 import { updateTransaction, isDismissed } from '../db.js';
-import { callGemini, hasValidApiKey } from '../utils/gemini.js';
+import { callLLM, extractText, safeParseJSON, hasValidApiKey } from '../utils/llm.js';
 
 export async function detectAnomalies(transactions) {
   console.log(`[Anomaly] Running anomaly detection on ${transactions.length} transactions...`);
 
+  // ── Per-category expense stats ────────────────────────────────────────────
   const categoryStats = {};
   for (const tx of transactions) {
     if (tx.type === 'expense' && tx.category) {
       if (!categoryStats[tx.category]) categoryStats[tx.category] = { sum: 0, count: 0 };
-      categoryStats[tx.category].sum += tx.amount;
+      categoryStats[tx.category].sum   += tx.amount;
       categoryStats[tx.category].count += 1;
     }
   }
 
+  // ── Flag exact duplicates (same description + amount within 5 days) ────────
   for (let i = 0; i < transactions.length; i++) {
-    const tx1 = transactions[i];
+    const tx1   = transactions[i];
     const date1 = new Date(tx1.date).getTime();
     let isDuplicate = false;
 
@@ -33,48 +35,55 @@ export async function detectAnomalies(transactions) {
       } else {
         const flags = new Set(tx1.flags || []);
         flags.add('duplicate');
-        tx1.flags = Array.from(flags);
+        tx1.flags      = Array.from(flags);
         tx1.confidence = 'high';
         if (!tx1.anomaly_explanation) {
-          tx1.anomaly_explanation = `Flagged: Exact duplicate detected — ${tx1.description} for $${tx1.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}.`;
+          tx1.anomaly_explanation =
+            `Flagged: Exact duplicate detected — ${tx1.description} for $${tx1.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}.`;
         }
         updateTransaction(tx1.id, { flags: tx1.flags, anomaly_explanation: tx1.anomaly_explanation, confidence: tx1.confidence });
       }
     }
   }
 
+  // ── Flag statistical anomalies (>2× category baseline) ──────────────────
   const anomalousTxs = [];
   for (const tx of transactions) {
     if (tx.type !== 'expense' || !tx.category || !categoryStats[tx.category]) continue;
-    const stats = categoryStats[tx.category];
-    const baselineAvg = stats.count > 1 ? (stats.sum - tx.amount) / (stats.count - 1) : stats.sum / stats.count;
-    const totalAvg = stats.sum / stats.count;
-    const isAnomaly = (baselineAvg > 0 && tx.amount > baselineAvg * 2) || (tx.amount > totalAvg * 1.5 && stats.count > 1);
 
-    if (isAnomaly) {
-      if (!isDismissed('anomaly', tx.description)) {
-        const flags = new Set(tx.flags || []);
-        flags.add('anomaly');
-        tx.flags = Array.from(flags);
-        tx.confidence = tx.amount > (baselineAvg || totalAvg) * 3 ? 'high' : 'medium';
-        tx.baselineAvg = baselineAvg || totalAvg;
-        tx.multiplier = (tx.amount / (baselineAvg || totalAvg)).toFixed(1);
-        anomalousTxs.push(tx);
-        updateTransaction(tx.id, { flags: tx.flags, confidence: tx.confidence });
-      }
+    const stats       = categoryStats[tx.category];
+    const baselineAvg = stats.count > 1
+      ? (stats.sum - tx.amount) / (stats.count - 1)
+      : stats.sum / stats.count;
+    const totalAvg  = stats.sum / stats.count;
+    const isAnomaly =
+      (baselineAvg > 0 && tx.amount > baselineAvg * 2) ||
+      (tx.amount > totalAvg * 1.5 && stats.count > 1);
+
+    if (isAnomaly && !isDismissed('anomaly', tx.description)) {
+      const flags = new Set(tx.flags || []);
+      flags.add('anomaly');
+      tx.flags       = Array.from(flags);
+      tx.confidence  = tx.amount > (baselineAvg || totalAvg) * 3 ? 'high' : 'medium';
+      tx.baselineAvg = baselineAvg || totalAvg;
+      tx.multiplier  = (tx.amount / (baselineAvg || totalAvg)).toFixed(1);
+      anomalousTxs.push(tx);
+      updateTransaction(tx.id, { flags: tx.flags, confidence: tx.confidence });
     }
   }
 
+  // ── Batch AI explanations for all anomalies without one ──────────────────
   if (anomalousTxs.length > 0) {
     const needsExplanation = anomalousTxs.filter(t => !t.anomaly_explanation);
+
     if (needsExplanation.length > 0 && hasValidApiKey()) {
       console.log(`[Anomaly] Running batched Gemini explanation for ${needsExplanation.length} flagged items (1 API call)...`);
 
       const itemsList = JSON.stringify(needsExplanation.map(t => ({
-        id: t.id,
+        id:          t.id,
         description: t.description,
-        amount: t.amount,
-        flag_reason: `${t.multiplier}x category average of $${t.baselineAvg.toFixed(2)}`
+        amount:      t.amount,
+        flag_reason: `${t.multiplier}x category average of $${t.baselineAvg.toFixed(2)}`,
       })), null, 2);
 
       const prompt = `Write a one-line plain-English explanation for each flagged transaction.
@@ -87,7 +96,9 @@ Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
 [{"id": 5, "explanation": "This AWS charge is 3.2x your typical monthly average of $2,400."}]`;
 
       try {
-        const results = await callGemini(prompt, { json: true });
+        const response = await callLLM(prompt, { model: 'smart' });
+        const raw      = extractText(response);
+        const results  = safeParseJSON(raw);
         if (Array.isArray(results)) {
           for (const item of results) {
             const tx = needsExplanation.find(t => t.id === item.id || t.id === Number(item.id));
@@ -98,14 +109,17 @@ Return ONLY a raw JSON array. No explanation, no markdown, no code fences:
           }
         }
       } catch (err) {
-        if (err.message === 'RATE_LIMIT') console.log('[Anomaly] Quota exhausted. Using template explanations.');
-        else if (err.message !== 'NO_KEY') console.error('[Anomaly] Gemini explanation error:', err.message);
+        if (err.status === 429) console.log('[Anomaly] Rate limit. Using template explanations.');
+        else                    console.error('[Anomaly] LLM explanation error:', err.message);
       }
     }
 
+    // Fill template explanations for anything still missing
     for (const tx of anomalousTxs) {
       if (!tx.anomaly_explanation) {
-        tx.anomaly_explanation = `Flagged: ${tx.description} charge ($${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) is ${tx.multiplier}x your category average ($${tx.baselineAvg.toLocaleString('en-US', { minimumFractionDigits: 2 })}).`;
+        tx.anomaly_explanation =
+          `Flagged: ${tx.description} charge ($${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}) ` +
+          `is ${tx.multiplier}x your category average ($${tx.baselineAvg.toLocaleString('en-US', { minimumFractionDigits: 2 })}).`;
         updateTransaction(tx.id, { anomaly_explanation: tx.anomaly_explanation });
       }
     }
