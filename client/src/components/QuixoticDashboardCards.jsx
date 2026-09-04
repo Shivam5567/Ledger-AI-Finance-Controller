@@ -163,8 +163,8 @@ export function QuixoticBalanceCard({ summary, onRunAgent, isRunning, onToggleCh
       {/* Header */}
       <div className="flex items-start justify-between mb-2">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 tracking-tight">Payment Goal</h3>
-          <p className="text-xs text-gray-400">Total amount goal</p>
+          <h3 className="text-sm font-semibold text-gray-900 tracking-tight">Settlement Funds</h3>
+          <p className="text-xs text-gray-400">Total verified inflow</p>
         </div>
         <ArrowUpRightIcon />
       </div>
@@ -393,8 +393,8 @@ export function QuixoticCreditAndExceptionsCard({
             💳
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 tracking-tight">Amount of credit</h3>
-            <p className="text-[11px] text-gray-400">Total refund amount with fee</p>
+            <h3 className="text-sm font-semibold text-gray-900 tracking-tight">Discrepancy Exposure</h3>
+            <p className="text-[11px] text-gray-400">Amount requiring authorization</p>
           </div>
         </div>
 
@@ -412,8 +412,8 @@ export function QuixoticCreditAndExceptionsCard({
       <div className="pt-4">
         <div className="flex items-start justify-between mb-3">
           <div>
-            <h4 className="text-xs font-semibold text-gray-900 tracking-tight">Mandatory Payments</h4>
-            <p className="text-[11px] text-gray-400">Flagged pending reviews</p>
+            <h4 className="text-xs font-semibold text-gray-900 tracking-tight">Exceptions Queue</h4>
+            <p className="text-[11px] text-gray-400">Pending human review</p>
           </div>
           <button onClick={onViewExceptions} className="cursor-pointer" title="Review exceptions">
             <ArrowUpRightIcon />
