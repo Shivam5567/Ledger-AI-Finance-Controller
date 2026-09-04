@@ -668,6 +668,7 @@ export default function App() {
               onUpload={handleUpload}
               isUploading={isUploading}
               onExport={exportCsv}
+              onRefresh={handleRefresh}
               txCount={transactions.length}
             />
           )}

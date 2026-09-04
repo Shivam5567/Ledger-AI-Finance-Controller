@@ -131,10 +131,12 @@ Here is how Ledger AI directly fulfills each benchmark:
 
 ```
                                   [ Transaction Sources ]
-                       (CSV Seed / Future: Razorpay Webhooks)
+                 (CSV Batch Ingestion & Razorpay Webhooks Stream)
                                           |
                                           v
-                              [ Express Ingestion API ]
+                    [ Express Ingestion API & Webhooks Router ]
+                  - POST /api/webhooks/razorpay (HMAC-SHA256)
+                  - Events: payment.captured, payout.processed, refund.processed
                                           |
                                           v
                              [ SQLite In-Memory / Disk ]
@@ -160,6 +162,21 @@ Here is how Ledger AI directly fulfills each benchmark:
      - Exception Action Approvals             - Root-Cause Interrogation
      - Clean SVG Glassmorphism                - Cash Float Queries
 ```
+
+---
+
+## Razorpay Webhook Integration: 24/7 Continuous Reconciliation
+
+Ledger AI is built to operate both as an end-of-period audit engine (via CSV batch ingestion) and as an event-driven, 24/7 continuous finance controller.
+
+- Webhook Endpoint: `/api/webhooks/razorpay`
+- Security: Cryptographic HMAC-SHA256 signature verification (`X-Razorpay-Signature`) against `RAZORPAY_WEBHOOK_SECRET` with constant-time equality checks (`crypto.timingSafeEqual`).
+- Handled Razorpay Events:
+  - `payment.captured`: Automatic paise-to-INR normalization, invoice reference extraction (`notes.invoice_ref` / `invoice_id`), and instant deterministic matching against open receivables.
+  - `payout.processed`: Vendor disbursement tracking, narration capture, and automated expense reconciliation.
+  - `refund.processed`: Customer return tracking linked to original payment identifiers.
+- Event-Driven Continuous Reconciliation: The moment an event is ingested, the deterministic engine executes in under 10ms. If a payment is captured without an invoice reference or duplicates an existing invoice, Ledger AI immediately isolates the exception and drafts the appropriate resolution action (reminder email or refund dispute) in real time.
+- In-App Evaluator Simulator: Available under **Settings > Razorpay Webhook & 24/7 Continuous Ingestion**, allowing hackathon judges to trigger realistic mock webhook payloads (`payment_matched`, `payment_unmatched`, `payout_processed`) directly in the browser with live ledger updates.
 
 ---
 

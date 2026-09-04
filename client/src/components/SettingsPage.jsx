@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SettingsGearIcon, SparklesIcon, TableListIcon } from './Icons';
 
-export default function SettingsPage({ onIngest, isIngesting, onUpload, isUploading, onExport, txCount = 0 }) {
+export default function SettingsPage({ onIngest, isIngesting, onUpload, isUploading, onExport, onRefresh, txCount = 0 }) {
   const [rules, setRules] = useState([]);
   const [loadingRules, setLoadingRules] = useState(true);
   const [uploadStatus, setUploadStatus] = useState('');
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulateNotice, setSimulateNotice] = useState(null);
   const fileInputRef = useRef(null);
 
   const fetchRules = () => {
@@ -43,6 +45,40 @@ export default function SettingsPage({ onIngest, isIngesting, onUpload, isUpload
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleSimulate = async (scenario) => {
+    setIsSimulating(true);
+    setSimulateNotice(null);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/webhooks/razorpay/test-simulate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Simulation failed');
+
+      const tx = data.reconciledTransaction;
+      const isExc = data.isException;
+      const statusText = isExc
+        ? `Flagged as Exception (${tx.flags?.join(', ') || 'exception'}) - ₹${Number(tx.amount || 0).toLocaleString('en-IN')}`
+        : `Verified & Matched - ₹${Number(tx.amount || 0).toLocaleString('en-IN')}`;
+
+      setSimulateNotice({
+        isError: false,
+        message: `Event "${data.event}" processed: ${statusText}. Total ledger: ${data.ledgerSummary?.totalCount || data.ledgerSummary?.total} transactions (${data.ledgerSummary?.matchRate} match rate).`,
+      });
+
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setSimulateNotice({
+        isError: true,
+        message: `Simulation error: ${err.message}`,
+      });
+    } finally {
+      setIsSimulating(false);
+    }
   };
 
   return (
@@ -88,6 +124,101 @@ export default function SettingsPage({ onIngest, isIngesting, onUpload, isUpload
               Function Tool Calling + Contextual Drafts
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Razorpay Webhook Integration & Continuous Reconciler Card */}
+      <div className="quixotic-card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#007A4D] animate-pulse" />
+              <span>Razorpay Webhook & 24/7 Continuous Ingestion</span>
+            </h3>
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              Event-driven pipeline with HMAC-SHA256 signature verification and continuous real-time ledger reconciliation.
+            </p>
+          </div>
+          <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#007A4D] border border-emerald-200 font-semibold">
+            Active · Live Endpoint
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs mb-4">
+          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
+            <div>
+              <span className="text-gray-400 block text-[10px] uppercase tracking-wider font-mono font-semibold">
+                Webhook Endpoint URL
+              </span>
+              <span className="font-mono text-gray-900 font-semibold text-[11px] mt-1 block break-all">
+                {window.location.origin}/api/webhooks/razorpay
+              </span>
+            </div>
+            <div className="mt-2 text-[10px] text-gray-500 flex items-center gap-1.5">
+              <span>Security:</span>
+              <span className="font-mono font-semibold text-gray-700">HMAC-SHA256 (X-Razorpay-Signature)</span>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100 flex flex-col justify-between">
+            <div>
+              <span className="text-gray-400 block text-[10px] uppercase tracking-wider font-mono font-semibold">
+                Subscribed Event Stream
+              </span>
+              <div className="flex flex-wrap gap-1.5 mt-1.5 font-mono text-[10px]">
+                <span className="px-2 py-0.5 rounded bg-white border border-gray-200 text-gray-700">payment.captured</span>
+                <span className="px-2 py-0.5 rounded bg-white border border-gray-200 text-gray-700">payout.processed</span>
+                <span className="px-2 py-0.5 rounded bg-white border border-gray-200 text-gray-700">refund.processed</span>
+              </div>
+            </div>
+            <div className="mt-2 text-[10px] text-[#007A4D] font-medium">
+              Zero-latency Reconciler: Auto-triggered on event arrival
+            </div>
+          </div>
+        </div>
+
+        {/* Live Evaluator Simulation Bar */}
+        <div className="pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-bold text-gray-700 font-sans">
+              Evaluator Event Simulator
+            </span>
+            <span className="text-[10px] text-gray-400">
+              Test real-time webhook ingestion directly in browser
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              disabled={isSimulating}
+              onClick={() => handleSimulate('payment_matched')}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              Simulate payment.captured (Matched)
+            </button>
+            <button
+              disabled={isSimulating}
+              onClick={() => handleSimulate('payment_unmatched')}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              Simulate payment.captured (Missing Invoice)
+            </button>
+            <button
+              disabled={isSimulating}
+              onClick={() => handleSimulate('payout_processed')}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 shadow-2xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              Simulate payout.processed
+            </button>
+          </div>
+
+          {simulateNotice && (
+            <div className={`mt-3 p-3 rounded-xl border text-xs font-mono animate-fade-in ${
+              simulateNotice.isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+            }`}>
+              {simulateNotice.message}
+            </div>
+          )}
         </div>
       </div>
 

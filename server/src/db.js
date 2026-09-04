@@ -139,6 +139,26 @@ export function insertTransactions(rows) {
   insertMany(rows);
 }
 
+export function insertSingleTransaction(tx) {
+  const insert = db.prepare(`
+    INSERT INTO transactions (date, description, amount, type, invoice_ref, category, flags, anomaly_explanation, action_draft, action_type, action_status, confidence, resolved_at)
+    VALUES (@date, @description, @amount, @type, @invoice_ref, @category, @flags, @anomaly_explanation, @action_draft, @action_type, @action_status, @confidence, @resolved_at)
+  `);
+  const info = insert.run({
+    ...tx,
+    invoice_ref: tx.invoice_ref || null,
+    category: tx.category || null,
+    flags: JSON.stringify(tx.flags || []),
+    anomaly_explanation: tx.anomaly_explanation || null,
+    action_draft: tx.action_draft || null,
+    action_type: tx.action_type || null,
+    action_status: tx.action_status || 'none',
+    confidence: tx.confidence || null,
+    resolved_at: tx.resolved_at || null,
+  });
+  return info.lastInsertRowid;
+}
+
 export function updateTransaction(id, fields) {
   const setClauses = [];
   const params = [];

@@ -13,6 +13,7 @@ import rulesRouter from './routes/rules.js';
 import proactiveRouter from './routes/proactive.js';
 import reportRouter from './routes/report.js';
 import dashboardRouter from './routes/dashboard.js';
+import webhooksRouter from './routes/webhooks.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -22,7 +23,12 @@ app.use(cors({
   origin: true,
   credentials: true,
 }));
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 app.use('/api/transactions', transactionsRouter);
 app.use('/api/agent', agentRouter);
@@ -33,6 +39,7 @@ app.use('/api/rules', rulesRouter);
 app.use('/api/proactive', proactiveRouter);
 app.use('/api/report', reportRouter);
 app.use('/api/dashboard', dashboardRouter);
+app.use('/api/webhooks', webhooksRouter);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
