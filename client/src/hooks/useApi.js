@@ -18,7 +18,7 @@ export function useTransactions() {
       const data = await fetchJson('/api/transactions');
       setTransactions(data.transactions || []);
     } catch (err) {
-      console.error('Failed to fetch transactions:', err);
+      console.error('[API] Failed to fetch transactions:', err.message || err);
     } finally {
       setLoading(false);
     }
@@ -37,7 +37,7 @@ export function useSummary() {
       const data = await fetchJson('/api/transactions/summary');
       setSummary(data);
     } catch (err) {
-      console.error('Failed to fetch summary:', err);
+      console.error('[API] Failed to fetch summary:', err.message || err);
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export function useIngest() {
       const res = await fetchJson('/api/transactions/ingest', { method: 'POST' });
       return res;
     } catch (err) {
-      console.error('Failed to ingest:', err);
+      console.error('[API] Failed to ingest:', err.message || err);
       throw err;
     } finally {
       setLoading(false);
@@ -78,7 +78,7 @@ export function useUpload() {
       });
       return res;
     } catch (err) {
-      console.error('Failed to upload:', err);
+      console.error('[API] Failed to upload:', err.message || err);
       throw err;
     } finally {
       setLoading(false);
@@ -115,13 +115,13 @@ export function useRunAgent(onProgress) {
               const data = JSON.parse(line.substring(6));
               if (onProgress) onProgress(data);
             } catch (e) {
-              console.error('Failed to parse SSE JSON:', e);
+              console.error('[API] Failed to parse SSE JSON:', e.message || e);
             }
           }
         }
       }
     } catch (err) {
-      console.error('Failed to run agent:', err);
+      console.error('[API] Failed to run agent:', err.message || err);
     } finally {
       setIsRunning(false);
     }
@@ -212,7 +212,7 @@ export function useAction() {
     try {
       return await fetchJson(`/api/actions/${id}/${actionType}`, { method: 'POST' });
     } catch (err) {
-      console.error(`Failed to ${actionType} action:`, err);
+      console.error(`[API] Failed to ${actionType} action:`, err.message || err);
       throw err;
     }
   };
@@ -245,7 +245,7 @@ export function useDashboard({ startDate, endDate, interval = 'weekly', status =
       setLastSyncedAt(new Date());
       return res;
     } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
+      console.error('[API] Failed to fetch dashboard data:', err.message || err);
       setError(err.message || 'Failed to load dashboard data');
     } finally {
       setLoading(false);
@@ -279,7 +279,7 @@ export function useDismissedRules() {
       const data = await fetchJson('/api/rules');
       setRules(data);
     } catch (err) {
-      console.error('Failed to fetch dismissed rules:', err);
+      console.error('[API] Failed to fetch dismissed rules:', err.message || err);
     }
   }, []);
 
@@ -288,7 +288,7 @@ export function useDismissedRules() {
       await fetchJson(`/api/rules/${id}`, { method: 'DELETE' });
       setRules(prev => prev.filter(r => r.id !== id));
     } catch (err) {
-      console.error('Failed to delete rule:', err);
+      console.error('[API] Failed to delete rule:', err.message || err);
     }
   };
 

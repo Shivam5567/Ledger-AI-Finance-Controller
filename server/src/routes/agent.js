@@ -117,7 +117,7 @@ router.post('/run', async (req, res) => {
 
     res.end();
   } catch (error) {
-    console.error('Pipeline error:', error);
+    console.error('[Pipeline] Error:', error.message);
     sendEvent({ stage: 'error', progress: 0, message: error.message });
     res.end();
   }

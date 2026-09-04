@@ -84,7 +84,7 @@ export default function App() {
         setReportData(data);
       }
     } catch (e) {
-      console.warn('Report fetch error:', e);
+      console.warn('[Report] Fetch warning:', e?.message || e);
     }
   }, []);
 
@@ -178,7 +178,7 @@ export default function App() {
       setAgentStage(null);
       await refetchAll();
     } catch (e) {
-      console.error('Ingest error:', e);
+      console.error('[Ingest] Ingestion error:', e?.message || e);
     }
   };
 
@@ -190,7 +190,7 @@ export default function App() {
       setAgentStage(null);
       await refetchAll();
     } catch (e) {
-      console.error('Upload error:', e);
+      console.error('[Upload] Upload error:', e?.message || e);
     }
   };
 
@@ -212,7 +212,7 @@ export default function App() {
       });
       await refetchAll();
     } catch (err) {
-      console.error('AI execution error:', err);
+      console.error('[Pipeline] Execution error:', err?.message || err);
       setAgentStage('error');
     } finally {
       isPipelineRunningRef.current = false;

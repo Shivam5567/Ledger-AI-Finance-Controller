@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue.bold,green.bold\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "build": "npm run build --prefix client",
+    "start": "node server/src/index.js",
     "install:all": "cd server && npm install && cd ../client && npm install",
     "server": "npm run dev --prefix server",
     "client": "npm run dev --prefix client"

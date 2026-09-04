@@ -1,8 +1,14 @@
 node_modules/
 dist/
+client/dist/
 .env
+.env.*
+!.env.example
 *.db
 *.db-wal
 *.db-shm
 *.log
 .DS_Store
+.vscode/
+.idea/
+

@@ -93,9 +93,10 @@ export function QuixoticTopNav({
           <button
             onClick={onToggleChat}
             className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
+            title="Open Settlement Q&A"
           >
             <span>💬</span>
-            <span className="hidden sm:inline">Settlement Q&A</span>
+            <span className="inline font-semibold">Settlement Q&A</span>
           </button>
 
           <button

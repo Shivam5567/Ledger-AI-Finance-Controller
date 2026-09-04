@@ -19,7 +19,7 @@ router.post('/ingest', (req, res) => {
     
     res.json({ count: parsedData.length, message: 'Ingestion successful' });
   } catch (error) {
-    console.error(error);
+    console.error('[Transactions] Ingestion error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -38,7 +38,7 @@ router.post('/upload', (req, res) => {
     insertTransactions(parsedData);
     res.json({ count: parsedData.length, message: `Uploaded ${parsedData.length} transactions successfully` });
   } catch (error) {
-    console.error(error);
+    console.error('[Transactions] Upload error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });

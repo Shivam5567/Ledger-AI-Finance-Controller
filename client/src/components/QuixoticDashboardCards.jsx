@@ -28,8 +28,6 @@ export function QuixoticCardWidget({
   const [justUpdated, setJustUpdated] = useState(false);
   const prevCountRef = React.useRef(null);
 
-  if (loading && !data && (!transactions || transactions.length === 0)) return <CardSkeleton />;
-
   // Compute live, real-time metrics directly from the active transactions set
   const hasLiveTxs = Array.isArray(transactions) && transactions.length > 0;
 
@@ -70,6 +68,8 @@ export function QuixoticCardWidget({
       prevCountRef.current = computedMatchedCount;
     }
   }, [hasLiveTxs, computedMatchedCount]);
+
+  if (loading && !data && (!transactions || transactions.length === 0)) return <CardSkeleton />;
 
   const periodInflow = hasLiveTxs
     ? computedInflow

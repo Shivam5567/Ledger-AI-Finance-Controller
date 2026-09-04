@@ -286,10 +286,10 @@ export function getLatestReconciliationRun(startDate, endDate) {
 }
 
 export function getReport() {
-  const total      = db.prepare('SELECT COUNT(*) as count FROM transactions').get().count;
-  const matched    = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE match_status = 'matched' OR match_status IS NULL OR action_status IN ('approved', 'dismissed')").get().count;
-  const exceptions = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE (match_status = 'exception' OR flags != '[]') AND action_status NOT IN ('approved', 'dismissed')").get().count;
-  const matchRate  = total > 0 ? ((matched / total) * 100).toFixed(1) : '0.0';
+  const total = db.prepare('SELECT COUNT(*) as count FROM transactions').get().count;
+  const exceptions = db.prepare("SELECT COUNT(*) as count FROM transactions WHERE (match_status = 'exception' OR (flags != '[]' AND flags IS NOT NULL)) AND (action_status IS NULL OR action_status NOT IN ('approved', 'dismissed'))").get().count;
+  const matched = Math.max(0, total - exceptions);
+  const matchRate = total > 0 ? ((matched / total) * 100).toFixed(1) : '100.0';
 
   const exceptionList = db.prepare(`
     SELECT id, date, description, amount, type, exception_type, exception_reason

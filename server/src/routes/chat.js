@@ -11,7 +11,7 @@ router.post('/', async (req, res) => {
     }
     await handleChatMessage(message, res);
   } catch (error) {
-    console.error("Chat Router Error:", error);
+    console.error('[ChatAgent] Router error:', error.message);
     if (!res.headersSent) {
       res.status(500).json({ error: error.message });
     }
