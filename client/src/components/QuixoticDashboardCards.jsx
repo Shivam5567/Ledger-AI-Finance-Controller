@@ -254,7 +254,7 @@ export function QuixoticPaymentHistoryCard({
             <tr className="text-gray-400 font-medium border-b border-gray-100 pb-2">
               <th className="pb-3 font-medium">Name</th>
               <th className="pb-3 font-medium">Date</th>
-              <th className="pb-3 font-medium">Time</th>
+              <th className="pb-3 font-medium">Reference</th>
               <th className="pb-3 font-medium">Status</th>
               <th className="pb-3 font-medium text-right">Amount</th>
             </tr>
@@ -264,7 +264,8 @@ export function QuixoticPaymentHistoryCard({
               const isException = (tx.flags && tx.flags.length > 0) || tx.match_status === 'exception';
               const isResolved = tx.action_status === 'approved' || tx.action_status === 'dismissed';
               const isExpanded = expandedId === tx.id;
-              const formattedAmt = `${tx.type === 'income' ? '+' : ''}${tx.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`;
+              const amtNumber = Math.abs(tx.amount || 0);
+              const formattedAmt = `${tx.type === 'income' ? '+' : '-'}$${amtNumber.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
               return (
                 <React.Fragment key={tx.id}>
@@ -280,19 +281,25 @@ export function QuixoticPaymentHistoryCard({
                       <div>
                         <div className="font-semibold text-gray-900 text-[13px]">{tx.description}</div>
                         <div className="text-[11px] text-gray-400 font-medium">
-                          {tx.category || (tx.type === 'income' ? '+8.67%' : 'expense')}
+                          {tx.category || (tx.type === 'income' ? 'Client Payment' : 'Operating Expense')}
                         </div>
                       </div>
                     </td>
 
                     {/* Date */}
-                    <td className="py-3.5 text-gray-600 font-medium whitespace-nowrap">
+                    <td className="py-3.5 text-gray-600 font-mono text-xs whitespace-nowrap">
                       {tx.date}
                     </td>
 
-                    {/* Time */}
-                    <td className="py-3.5 text-gray-400 font-mono text-[11px] whitespace-nowrap">
-                      10:30 PM
+                    {/* Reference (replaces fake 10:30 PM) */}
+                    <td className="py-3.5 text-gray-500 font-mono text-[11px] whitespace-nowrap">
+                      {tx.invoice_ref ? (
+                        <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 font-semibold">
+                          {tx.invoice_ref}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
 
                     {/* Status Dot */}
