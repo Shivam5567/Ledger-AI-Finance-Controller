@@ -252,10 +252,6 @@ export function useDashboard({ startDate, endDate, interval = 'weekly', status =
     }
   }, [startDate, endDate, interval, status]);
 
-  useEffect(() => {
-    refetch();
-  }, [refetch]);
-
   return { data, loading, error, lastSyncedAt, refetch };
 }
 
