@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { VendorBadge } from './Icons';
 
 const EXCEPTION_CONFIG = {
   missing_invoice: {
@@ -6,31 +7,34 @@ const EXCEPTION_CONFIG = {
     actionLabel: 'Add invoice ref',
     actionSecondary: 'Dismiss',
     icon: '📋',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
   },
   duplicate_payment: {
     title: 'DUPLICATE PAYMENT',
     actionLabel: 'Request refund',
     actionSecondary: 'Dismiss',
     icon: '🔄',
+    badgeClass: 'bg-red-50 text-red-700 border-red-200',
   },
   duplicate_ref: {
     title: 'DUPLICATE INVOICE REF',
     actionLabel: 'Verify invoice',
     actionSecondary: 'Dismiss',
     icon: '📄',
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
   },
   spend_anomaly: {
     title: 'SPEND ANOMALY',
     actionLabel: 'Review & approve',
     actionSecondary: 'Dismiss',
     icon: '⚠️',
+    badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
   },
 };
 
 export default function ExceptionsPage({ transactions = [], onApprove, onDismiss }) {
   const [activeDraftId, setActiveDraftId] = useState(null);
 
-  // Unresolved exceptions
   const unresolvedExceptions = transactions.filter(
     (tx) =>
       ((tx.flags && tx.flags.length > 0) || tx.match_status === 'exception') &&
@@ -38,7 +42,6 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
       tx.action_status !== 'dismissed'
   );
 
-  // Group by exception type
   const grouped = unresolvedExceptions.reduce((acc, tx) => {
     let type = tx.exception_type;
     if (!type && tx.flags && tx.flags.length > 0) {
@@ -57,32 +60,32 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
   const typeKeys = Object.keys(grouped);
 
   return (
-    <div className="w-full flex flex-col gap-6 animate-fade-in">
+    <div className="w-full flex flex-col gap-6 animate-fade-in max-w-5xl">
       {/* Header */}
-      <div className="flex items-baseline justify-between border-b border-[#2A2A2E] pb-4">
+      <div className="flex items-baseline justify-between border-b border-gray-200 pb-4">
         <div>
-          <h2 className="text-[20px] font-semibold text-[#F5F5F5] tracking-tight">
-            Exceptions
+          <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+            Exceptions Queue
           </h2>
-          <p className="text-[13px] text-[#8A8A8E] mt-0.5">
-            {unresolvedExceptions.length} unresolved {unresolvedExceptions.length === 1 ? 'item' : 'items'} requiring human review
+          <p className="text-xs text-gray-500 mt-1">
+            {unresolvedExceptions.length} items flagged for human review & authorization
           </p>
         </div>
         {unresolvedExceptions.length === 0 && (
-          <span className="text-[13px] text-[#22C55E] font-medium">
+          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-[#007A4D] border border-emerald-200">
             ✓ All exceptions resolved
           </span>
         )}
       </div>
 
       {unresolvedExceptions.length === 0 ? (
-        <div className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl p-12 text-center">
-          <div className="text-3xl mb-3 text-[#22C55E]">✓</div>
-          <h3 className="text-[16px] font-semibold text-[#F5F5F5] mb-1">
-            Zero Unresolved Exceptions
+        <div className="quixotic-card p-12 text-center">
+          <div className="text-4xl mb-3">🎉</div>
+          <h3 className="text-base font-bold text-gray-900 mb-1">
+            Reconciliation Complete
           </h3>
-          <p className="text-[14px] text-[#8A8A8E]">
-            All transactions are either matched or have been approved/dismissed.
+          <p className="text-xs text-gray-500 max-w-sm mx-auto">
+            Zero unresolved exceptions. Every transaction has been verified or settled.
           </p>
         </div>
       ) : (
@@ -93,67 +96,74 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
             actionLabel: 'Take Action',
             actionSecondary: 'Dismiss',
             icon: '⚠️',
+            badgeClass: 'bg-gray-100 text-gray-700',
           };
 
           return (
             <div key={typeKey} className="flex flex-col gap-3">
               {/* Group Title */}
-              <div className="flex items-center gap-2 text-[12px] font-mono uppercase tracking-wider text-[#8A8A8E] font-semibold">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
                 <span>{config.icon}</span>
                 <span>{config.title}</span>
-                <span className="text-[#505055]">·</span>
-                <span className="text-[#F5F5F5]">{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+                <span className="text-gray-300">·</span>
+                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-mono text-[11px]">
+                  {items.length} {items.length === 1 ? 'item' : 'items'}
+                </span>
               </div>
 
-              {/* Cards list */}
-              <div className="flex flex-col gap-2.5">
+              {/* Cards List */}
+              <div className="flex flex-col gap-3">
                 {items.map((tx) => {
                   const isDraftOpen = activeDraftId === tx.id;
                   const isIncome = tx.type === 'income';
-                  const formattedAmount = `${isIncome ? '+' : '-'}$${Math.abs(tx.amount).toLocaleString('en-US', {
+                  const formattedAmt = `${isIncome ? '+' : '-'}$${Math.abs(tx.amount).toLocaleString('en-US', {
                     minimumFractionDigits: 2,
                   })}`;
 
                   return (
                     <div
                       key={tx.id}
-                      className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-5 hover:border-[#3A3A40] transition-all"
+                      className="quixotic-card p-5 hover:border-emerald-300 transition-all"
                     >
-                      {/* Card Top: Title, Amount, Date */}
-                      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-[15px] font-medium text-[#F5F5F5]">
-                            {tx.description}
-                          </span>
-                          {tx.invoice_ref && (
-                            <span className="text-[12px] font-mono text-[#505055]">
-                              [{tx.invoice_ref}]
+                      {/* Card Top */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-3">
+                          <VendorBadge name={tx.description} category={tx.category} />
+                          <div>
+                            <span className="text-sm font-bold text-gray-900 block">
+                              {tx.description}
                             </span>
-                          )}
+                            <span className="text-[11px] text-gray-400 font-mono">
+                              {tx.date} {tx.invoice_ref && `· Ref: ${tx.invoice_ref}`}
+                            </span>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-3">
                           <span
-                            className={`font-mono font-bold text-[14px] tabular-nums ${
-                              isIncome ? 'text-[#22C55E]' : 'text-[#F5F5F5]'
+                            className={`font-mono font-bold text-sm tabular-nums ${
+                              isIncome ? 'text-[#007A4D]' : 'text-gray-900'
                             }`}
                           >
-                            {formattedAmount}
+                            {formattedAmt}
                           </span>
-                          <span className="text-[12px] font-mono text-[#8A8A8E]">
-                            {tx.date}
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${config.badgeClass}`}>
+                            {config.title}
                           </span>
                         </div>
                       </div>
 
                       {/* Plain-English Reason */}
-                      <p className="text-[13px] text-[#8A8A8E] mb-4 leading-relaxed">
-                        {tx.exception_reason || tx.anomaly_explanation || 'Discrepancy identified by reconciliation engine.'}
+                      <p className="text-xs text-gray-600 mb-4 bg-gray-50 p-2.5 rounded-xl border border-gray-100 leading-relaxed">
+                        {tx.exception_reason || tx.anomaly_explanation || 'Flagged for human confirmation.'}
                       </p>
 
-                      {/* Draft expandable box */}
+                      {/* AI Draft preview */}
                       {isDraftOpen && tx.action_draft && (
-                        <div className="mb-4 p-4 rounded-lg bg-[#0D0D0F] border border-[#2A2A2E] text-[13px] font-mono text-[#F5F5F5] whitespace-pre-wrap leading-relaxed animate-slide-down">
+                        <div className="mb-4 p-4 rounded-xl bg-gray-900 text-white font-mono text-xs whitespace-pre-wrap leading-relaxed animate-fade-in shadow-inner">
+                          <div className="text-[10px] text-emerald-400 uppercase tracking-wider mb-2 font-sans font-bold">
+                            🤖 AI Action Draft:
+                          </div>
                           {tx.action_draft}
                         </div>
                       )}
@@ -163,13 +173,13 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => onApprove(tx.id)}
-                            className="px-4 py-1.5 rounded-lg text-[13px] font-semibold bg-[#4F6EF7] hover:bg-[#3D5DE8] text-white transition-all cursor-pointer"
+                            className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all shadow-xs cursor-pointer"
                           >
                             {config.actionLabel}
                           </button>
                           <button
                             onClick={() => onDismiss(tx.id)}
-                            className="px-3 py-1.5 rounded-lg text-[13px] font-medium bg-transparent hover:bg-white/5 text-[#8A8A8E] hover:text-[#F5F5F5] border border-[#2A2A2E] transition-all cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-full text-xs font-medium bg-white hover:bg-gray-50 text-gray-600 border border-gray-200 transition-all cursor-pointer"
                           >
                             {config.actionSecondary}
                           </button>
@@ -178,9 +188,9 @@ export default function ExceptionsPage({ transactions = [], onApprove, onDismiss
                         {tx.action_draft && (
                           <button
                             onClick={() => setActiveDraftId(prev => (prev === tx.id ? null : tx.id))}
-                            className="text-[12px] text-[#8A8A8E] hover:text-[#F5F5F5] font-medium transition-colors cursor-pointer"
+                            className="text-xs text-[#007A4D] hover:underline font-semibold cursor-pointer"
                           >
-                            {isDraftOpen ? 'Hide draft ▲' : 'View AI draft ▼'}
+                            {isDraftOpen ? 'Hide AI draft ▲' : 'Inspect AI draft ▼'}
                           </button>
                         )}
                       </div>

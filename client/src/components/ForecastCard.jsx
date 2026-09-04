@@ -1,35 +1,33 @@
 import React from 'react';
 
 export default function ForecastCard({ summary }) {
-  // Compute projection from live data or fallbacks based on the 55 transaction dataset
   const categories = summary?.byCategory || [];
 
   const defaultForecasts = [
-    { name: 'Payroll', amount: 56000, trend: 'stable', pct: 95, color: '#4F6EF7' },
-    { name: 'Cloud/Infra', amount: 4800, trend: '↑ +20%', pct: 60, color: '#EF4444' },
-    { name: 'Marketing', amount: 8900, trend: 'stable', pct: 75, color: '#F59E0B' },
-    { name: 'Office', amount: 9000, trend: 'stable', pct: 78, color: '#22C55E' },
+    { name: 'Payroll', amount: 56000, trend: 'stable', pct: 95, color: '#007A4D' },
+    { name: 'Cloud / Infra', amount: 4800, trend: '↑ +20%', pct: 60, color: '#DC2626' },
+    { name: 'Marketing', amount: 8900, trend: 'stable', pct: 75, color: '#D97706' },
+    { name: 'Office Rent', amount: 9000, trend: 'stable', pct: 78, color: '#059669' },
   ];
 
-  // If we have live categories, map them
   const items = categories.length > 0
     ? categories.slice(0, 5).map(c => {
         let trend = 'stable';
         let pct = 70;
-        let color = '#4F6EF7';
+        let color = '#007A4D';
 
         if (c.category.includes('cloud') || c.category.includes('infra')) {
           trend = '↑ +20%';
-          color = '#EF4444';
+          color = '#DC2626';
           pct = 85;
         } else if (c.category.includes('payroll')) {
-          color = '#4F6EF7';
+          color = '#007A4D';
           pct = 95;
         } else if (c.category.includes('marketing') || c.category.includes('ads')) {
-          color = '#F59E0B';
+          color = '#D97706';
           pct = 75;
         } else if (c.category.includes('rent') || c.category.includes('office')) {
-          color = '#22C55E';
+          color = '#059669';
           pct = 80;
         }
 
@@ -46,31 +44,36 @@ export default function ForecastCard({ summary }) {
   const totalProjected = items.reduce((acc, i) => acc + i.amount, 0);
 
   return (
-    <div className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl p-6 transition-all">
+    <div className="quixotic-card p-6 transition-all">
       {/* Header */}
-      <div className="flex items-baseline justify-between mb-5">
-        <h3 className="text-[16px] font-semibold text-[#F5F5F5] tracking-tight">
-          August Forecast
-        </h3>
-        <span className="text-[12px] font-mono text-[#505055]">
-          based on 2mo history
+      <div className="flex items-baseline justify-between mb-5 border-b border-gray-100 pb-3">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 tracking-tight">
+            August Spend Forecast
+          </h3>
+          <p className="text-xs text-gray-400 font-mono">
+            Forward projection based on 2-month dataset run-rate
+          </p>
+        </div>
+        <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#007A4D] border border-emerald-200">
+          Run-Rate Predictive Model
         </span>
       </div>
 
       {/* Category breakdown rows */}
       <div className="flex flex-col gap-3.5 mb-6">
         {items.map((item) => (
-          <div key={item.name} className="flex items-center justify-between text-[13px] gap-4">
-            <span className="w-28 text-[#8A8A8E] truncate font-medium">
+          <div key={item.name} className="flex items-center justify-between text-xs gap-4">
+            <span className="w-28 text-gray-700 truncate font-semibold">
               {item.name}
             </span>
 
-            <span className="w-24 font-mono font-medium text-[#F5F5F5] tabular-nums">
+            <span className="w-24 font-mono font-bold text-gray-900 tabular-nums text-[13px]">
               ${item.amount.toLocaleString()}
             </span>
 
             {/* Pure CSS bar */}
-            <div className="flex-1 h-2 bg-[#1C1C1F] rounded-full overflow-hidden">
+            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{ width: `${item.pct}%`, backgroundColor: item.color }}
@@ -79,10 +82,10 @@ export default function ForecastCard({ summary }) {
 
             {/* Trend badge */}
             <span
-              className={`w-16 text-right font-mono text-[12px] ${
+              className={`w-16 text-right font-mono text-[11px] font-semibold ${
                 item.trend.includes('↑')
-                  ? 'text-[#EF4444] font-medium'
-                  : 'text-[#505055]'
+                  ? 'text-red-600'
+                  : 'text-gray-400'
               }`}
             >
               {item.trend}
@@ -92,10 +95,10 @@ export default function ForecastCard({ summary }) {
       </div>
 
       {/* Projected total footer */}
-      <div className="border-t border-[#2A2A2E] pt-4 flex items-baseline justify-between">
-        <span className="text-[13px] text-[#8A8A8E]">Projected total:</span>
-        <span className="text-[18px] font-bold font-mono text-[#F5F5F5] tabular-nums">
-          ${totalProjected.toLocaleString()}
+      <div className="border-t border-gray-100 pt-4 flex items-baseline justify-between">
+        <span className="text-xs text-gray-500 font-medium">Total projected monthly run-rate:</span>
+        <span className="text-xl font-bold font-mono text-gray-900 tabular-nums">
+          ${totalProjected.toLocaleString()} USD
         </span>
       </div>
     </div>

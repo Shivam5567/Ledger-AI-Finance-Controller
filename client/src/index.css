@@ -1,63 +1,88 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg-base: #0D0D0F;
-  --color-surface: #141416;
-  --color-surface-elevated: #1C1C1F;
-  --color-surface-border: #2A2A2E;
+  --color-canvas: #F0F2F5;
+  --color-card-bg: #FFFFFF;
+  --color-card-border: #E5E7EB;
   
-  --color-text-primary: #F5F5F5;
-  --color-text-secondary: #8A8A8E;
-  --color-text-muted: #505055;
+  --color-brand-emerald: #007A4D;
+  --color-brand-emerald-dark: #00603C;
+  --color-brand-emerald-light: #E8F5E9;
+  --color-brand-mint: #A3D9C9;
   
-  --color-accent: #4F6EF7;
-  --color-success: #22C55E;
-  --color-warning: #F59E0B;
-  --color-danger: #EF4444;
+  --color-text-main: #1A1D1F;
+  --color-text-sub: #6F767E;
+  --color-text-muted: #9A9FA5;
+  
+  --color-status-success: #059669;
+  --color-status-warning: #D97706;
+  --color-status-danger: #DC2626;
 }
 
 body {
-  background-color: #0D0D0F;
-  color: #F5F5F5;
+  background-color: #F0F2F5;
+  color: #1A1D1F;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom tabular number utility */
+/* Custom tabular numbers */
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Clean dark scrollbar */
+/* Custom scrollbars for clean light UI */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0D0D0F;
+  background: #F0F2F5;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2A2A2E;
+  background: #D1D5DB;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3A3A40;
+  background: #9CA3AF;
+}
+
+/* Soft card shadow like reference image */
+.quixotic-card {
+  background: #FFFFFF;
+  border-radius: 24px;
+  border: 1px solid rgba(229, 231, 235, 0.7);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease-in-out;
+}
+.quixotic-card:hover {
+  box-shadow: 0 8px 26px -2px rgba(0, 0, 0, 0.05), 0 4px 8px -1px rgba(0, 0, 0, 0.03);
+}
+
+/* Pill capsules */
+.pill-dock {
+  background: #FFFFFF;
+  border-radius: 28px;
+  border: 1px solid rgba(229, 231, 235, 0.8);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Striped / hatched bar pattern */
+.striped-bar-pattern {
+  background-color: #A7D7C5;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0.35) 4px,
+    transparent 4px,
+    transparent 8px
+  );
 }
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -68,7 +93,7 @@ body {
 
 @keyframes pulseDot {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 0.4; transform: scale(0.8); }
 }
 
 @keyframes bounceDots {
@@ -76,9 +101,7 @@ body {
   40% { transform: scale(1); }
 }
 
-.animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
-.animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-.animate-slide-down { animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-fade-in { animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-slide-in-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 .animate-pulse-dot { animation: pulseDot 1.6s infinite ease-in-out; }
 

@@ -26,89 +26,93 @@ export default function SettingsPage({ onIngest, isIngesting, onExport, txCount 
 
   return (
     <div className="w-full flex flex-col gap-6 animate-fade-in max-w-4xl">
-      <div className="border-b border-[#2A2A2E] pb-4">
-        <h2 className="text-[20px] font-semibold text-[#F5F5F5] tracking-tight">
+      <div className="border-b border-gray-200 pb-4">
+        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
           System & Settings
         </h2>
-        <p className="text-[13px] text-[#8A8A8E] mt-0.5">
+        <p className="text-xs text-gray-500 mt-1">
           LLM pipeline configuration, agent memory rules, and ledger database management.
         </p>
       </div>
 
       {/* Model & Engine Configuration Card */}
-      <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
-        <h3 className="text-[15px] font-semibold text-[#F5F5F5] mb-4">
-          LLM Engine Configuration
+      <div className="quixotic-card p-6">
+        <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <span>⚙️</span>
+          <span>Groq Cloud Model Architecture</span>
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[13px]">
-          <div className="p-4 rounded-lg bg-[#0D0D0F] border border-[#2A2A2E]">
-            <span className="text-[#8A8A8E] block text-[12px] uppercase tracking-wider mb-1 font-mono">
-              Categorization Model (Fast)
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+            <span className="text-gray-400 block text-[11px] uppercase tracking-wider mb-1 font-mono font-semibold">
+              Categorization (Fast Engine)
             </span>
-            <span className="font-mono text-[#F5F5F5] font-medium text-[14px]">
+            <span className="font-mono text-gray-900 font-bold text-sm block">
               openai/gpt-oss-20b
             </span>
-            <span className="block text-[11px] text-[#22C55E] mt-1 font-mono">
-              ● High Throughput · 1 API call per run
+            <span className="text-[11px] text-[#007A4D] mt-1.5 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#007A4D]" />
+              Batched · 1 API call per complete dataset
             </span>
           </div>
 
-          <div className="p-4 rounded-lg bg-[#0D0D0F] border border-[#2A2A2E]">
-            <span className="text-[#8A8A8E] block text-[12px] uppercase tracking-wider mb-1 font-mono">
-              Reasoning & Chat Model (Smart)
+          <div className="p-4 rounded-2xl bg-gray-50 border border-gray-100">
+            <span className="text-gray-400 block text-[11px] uppercase tracking-wider mb-1 font-mono font-semibold">
+              Reasoning & Actions (Smart Engine)
             </span>
-            <span className="font-mono text-[#F5F5F5] font-medium text-[14px]">
+            <span className="font-mono text-gray-900 font-bold text-sm block">
               openai/gpt-oss-120b
             </span>
-            <span className="block text-[11px] text-[#4F6EF7] mt-1 font-mono">
-              ● Deep Reasoning · Function Tool Calling
+            <span className="text-[11px] text-[#007A4D] mt-1.5 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#007A4D]" />
+              Function Tool Calling + Contextual Drafts
             </span>
           </div>
         </div>
       </div>
 
       {/* Agent Memory Rules Card */}
-      <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
+      <div className="quixotic-card p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-[15px] font-semibold text-[#F5F5F5]">
-              Agent Memory (Dismissed Rules)
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <span>🧠</span>
+              <span>Agent Memory (Dismissed Rules)</span>
             </h3>
-            <p className="text-[12px] text-[#8A8A8E] mt-0.5">
-              When you dismiss a flagged item, the agent stores a memory rule to prevent re-flagging identical patterns.
+            <p className="text-[11px] text-gray-500 mt-0.5">
+              When you dismiss a flagged item, the agent stores a persistent rule to avoid re-flagging identical transactions.
             </p>
           </div>
-          <span className="text-[12px] font-mono text-[#505055]">
-            {rules.length} {rules.length === 1 ? 'rule' : 'rules'} active
+          <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-semibold">
+            {rules.length} active
           </span>
         </div>
 
         {loadingRules ? (
-          <p className="text-[13px] text-[#8A8A8E] py-4">Loading rules…</p>
+          <p className="text-xs text-gray-400 py-4">Loading rules…</p>
         ) : rules.length === 0 ? (
-          <p className="text-[13px] text-[#505055] py-4 border-t border-[#2A2A2E]">
+          <p className="text-xs text-gray-400 py-4 border-t border-gray-100">
             No active memory rules. Dismissing transactions will populate this list.
           </p>
         ) : (
-          <div className="flex flex-col gap-2 border-t border-[#2A2A2E] pt-3">
+          <div className="flex flex-col gap-2 border-t border-gray-100 pt-3">
             {rules.map((rule) => (
               <div
                 key={rule.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-[#0D0D0F] border border-[#2A2A2E] text-[13px]"
+                className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs"
               >
                 <div className="flex items-center gap-3">
-                  <span className="px-2 py-0.5 rounded text-[11px] font-mono uppercase bg-[#2A2A2E] text-[#F5F5F5]">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold uppercase bg-white border border-gray-200 text-gray-800">
                     {rule.flag_type}
                   </span>
-                  <span className="text-[#8A8A8E]">
-                    Ignore: <span className="text-[#F5F5F5] font-medium">"{rule.description_pattern}"</span>
+                  <span className="text-gray-600">
+                    Rule: Ignore <span className="font-semibold text-gray-900">"{rule.description_pattern}"</span>
                   </span>
                 </div>
                 <button
                   onClick={() => handleDeleteRule(rule.id)}
-                  className="text-[12px] text-[#EF4444] hover:underline cursor-pointer"
+                  className="text-xs text-red-600 hover:underline font-medium cursor-pointer"
                 >
-                  Delete rule
+                  Delete
                 </button>
               </div>
             ))}
@@ -116,29 +120,30 @@ export default function SettingsPage({ onIngest, isIngesting, onExport, txCount 
         )}
       </div>
 
-      {/* Database & Data Management */}
-      <div className="bg-[#141416] border border-[#2A2A2E] rounded-xl p-6">
-        <h3 className="text-[15px] font-semibold text-[#F5F5F5] mb-4">
-          Data Management
+      {/* Database Management Card */}
+      <div className="quixotic-card p-6">
+        <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+          <span>💾</span>
+          <span>Ledger Data Ingestion</span>
         </h3>
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={onIngest}
             disabled={isIngesting}
-            className="px-4 py-2 rounded-lg text-[13px] font-medium bg-[#1C1C1F] hover:bg-[#2A2A2E] text-[#F5F5F5] border border-[#2A2A2E] transition-colors cursor-pointer"
+            className="px-5 py-2.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all cursor-pointer shadow-xs disabled:opacity-50"
           >
-            {isIngesting ? 'Reloading…' : 'Reload sample_transactions.csv'}
+            {isIngesting ? 'Reloading…' : 'Reload sample_transactions.csv (55 Rows)'}
           </button>
           {onExport && (
             <button
               onClick={onExport}
-              className="px-4 py-2 rounded-lg text-[13px] font-medium bg-[#1C1C1F] hover:bg-[#2A2A2E] text-[#F5F5F5] border border-[#2A2A2E] transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-full text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 transition-all cursor-pointer shadow-xs"
             >
-              Export CSV
+              Export Reconciled CSV
             </button>
           )}
         </div>
-        <p className="text-[12px] text-[#505055] mt-3 font-mono">
+        <p className="text-[11px] text-gray-400 mt-3 font-mono">
           Database: SQLite (WAL Mode) · {txCount} transactions currently indexed
         </p>
       </div>

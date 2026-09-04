@@ -7,9 +7,10 @@ export default function SettlementPanel({ isOpen, onClose }) {
   const messagesEndRef = useRef(null);
 
   const suggestedQuestions = [
-    'Net position?',
-    'Any duplicates?',
-    'Payroll spend?',
+    'Net position & summary?',
+    'Show all duplicate charges',
+    'How much did we spend on payroll?',
+    'What are the largest anomalies?',
   ];
 
   useEffect(() => {
@@ -33,44 +34,49 @@ export default function SettlementPanel({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[400px] bg-[#141416] border-l border-[#2A2A2E] z-50 flex flex-col shadow-2xl animate-slide-in-right">
+    <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white border-l border-gray-200 z-50 flex flex-col shadow-2xl animate-slide-in-right">
       {/* Header */}
-      <div className="h-16 px-5 border-b border-[#2A2A2E] flex items-center justify-between bg-[#0D0D0F]">
-        <div className="flex items-center gap-2">
-          <span className="text-[#4F6EF7]">💬</span>
-          <h3 className="text-[15px] font-semibold text-[#F5F5F5]">Settlement Q&A</h3>
+      <div className="h-16 px-6 border-b border-gray-100 flex items-center justify-between bg-white">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-full bg-emerald-50 text-[#007A4D] flex items-center justify-center font-bold text-sm">
+            💬
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900">Settlement Q&A</h3>
+            <p className="text-[11px] text-gray-400">Autonomous Financial Intelligence</p>
+          </div>
         </div>
         <button
           onClick={onClose}
-          className="text-[#8A8A8E] hover:text-[#F5F5F5] p-1.5 rounded-lg hover:bg-[#1C1C1F] transition-colors cursor-pointer text-[14px]"
+          className="w-8 h-8 rounded-full text-gray-400 hover:text-gray-900 hover:bg-gray-100 flex items-center justify-center transition-colors cursor-pointer text-sm"
         >
           ✕
         </button>
       </div>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-3.5 bg-[#F9FAFB]/50">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-4">
-            <div className="w-10 h-10 rounded-xl bg-[#1C1C1F] border border-[#2A2A2E] flex items-center justify-center text-lg mb-3 text-[#4F6EF7]">
-              💬
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-xl mb-3 text-[#007A4D] shadow-xs">
+              ⚡
             </div>
-            <h4 className="text-[14px] font-semibold text-[#F5F5F5] mb-1">
-              Ask about your transactions
+            <h4 className="text-sm font-bold text-gray-900 mb-1">
+              Ask about your ledger
             </h4>
-            <p className="text-[12px] text-[#8A8A8E] mb-6 max-w-[260px]">
+            <p className="text-xs text-gray-500 mb-6 max-w-[260px] leading-relaxed">
               Query live totals, duplicate records, category spend, and reconciliations in natural language.
             </p>
 
             <div className="w-full flex flex-col gap-2">
-              <span className="text-[11px] font-mono text-[#505055] uppercase tracking-wider text-left">
-                Suggested questions:
+              <span className="text-[11px] font-mono text-gray-400 uppercase tracking-wider text-left">
+                Suggested prompts:
               </span>
               {suggestedQuestions.map((q) => (
                 <button
                   key={q}
                   onClick={() => handleSuggestedClick(q)}
-                  className="w-full text-left px-3.5 py-2.5 rounded-lg text-[13px] bg-[#1C1C1F] hover:bg-[#2A2A2E] text-[#F5F5F5] border border-[#2A2A2E] transition-colors cursor-pointer"
+                  className="w-full text-left px-3.5 py-2.5 rounded-xl text-xs bg-white hover:bg-emerald-50/60 text-gray-800 border border-gray-200/80 hover:border-emerald-300 transition-all cursor-pointer shadow-2xs font-medium"
                 >
                   · {q}
                 </button>
@@ -86,10 +92,10 @@ export default function SettlementPanel({ isOpen, onClose }) {
                 className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-xl px-4 py-2.5 text-[13px] leading-relaxed select-text ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs leading-relaxed select-text shadow-xs ${
                     isUser
-                      ? 'bg-[#4F6EF7] text-white'
-                      : 'bg-[#1C1C1F] text-[#F5F5F5] border border-[#2A2A2E]'
+                      ? 'bg-[#007A4D] text-white rounded-br-none'
+                      : 'bg-white text-gray-900 border border-gray-200/80 rounded-bl-none'
                   }`}
                 >
                   <p className="whitespace-pre-wrap">{m.content}</p>
@@ -101,7 +107,7 @@ export default function SettlementPanel({ isOpen, onClose }) {
 
         {/* Tool execution indicator */}
         {toolState && (
-          <div className="flex items-center gap-2 text-[12px] text-[#4F6EF7] font-mono pl-1">
+          <div className="flex items-center gap-2 text-xs text-[#007A4D] font-mono pl-1">
             <span className="animate-spin text-xs">⚙</span>
             <span>{toolState}</span>
           </div>
@@ -109,10 +115,10 @@ export default function SettlementPanel({ isOpen, onClose }) {
 
         {/* Typing indicator */}
         {isTyping && !toolState && (
-          <div className="flex items-center gap-1.5 p-3 rounded-xl bg-[#1C1C1F] border border-[#2A2A2E] w-16">
-            <span className="w-1.5 h-1.5 bg-[#8A8A8E] rounded-full typing-dot" />
-            <span className="w-1.5 h-1.5 bg-[#8A8A8E] rounded-full typing-dot" />
-            <span className="w-1.5 h-1.5 bg-[#8A8A8E] rounded-full typing-dot" />
+          <div className="flex items-center gap-1.5 p-3 rounded-2xl bg-white border border-gray-200/80 w-16 shadow-xs">
+            <span className="w-1.5 h-1.5 bg-[#007A4D] rounded-full typing-dot" />
+            <span className="w-1.5 h-1.5 bg-[#007A4D] rounded-full typing-dot" />
+            <span className="w-1.5 h-1.5 bg-[#007A4D] rounded-full typing-dot" />
           </div>
         )}
 
@@ -120,7 +126,7 @@ export default function SettlementPanel({ isOpen, onClose }) {
       </div>
 
       {/* Input bottom area */}
-      <div className="p-4 border-t border-[#2A2A2E] bg-[#0D0D0F]">
+      <div className="p-4 border-t border-gray-100 bg-white">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
             type="text"
@@ -128,12 +134,12 @@ export default function SettlementPanel({ isOpen, onClose }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={isTyping}
-            className="flex-1 bg-[#141416] border border-[#2A2A2E] rounded-lg px-3.5 py-2 text-[13px] text-[#F5F5F5] placeholder-[#505055] focus:outline-none focus:border-[#4F6EF7] transition-colors"
+            className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-[#007A4D] focus:bg-white transition-all"
           />
           <button
             type="submit"
             disabled={!input.trim() || isTyping}
-            className="px-3.5 py-2 rounded-lg bg-[#4F6EF7] hover:bg-[#3D5DE8] text-white text-[13px] font-semibold transition-all disabled:opacity-40 cursor-pointer"
+            className="w-9 h-9 rounded-full bg-[#007A4D] hover:bg-[#006644] text-white flex items-center justify-center text-xs font-semibold transition-all disabled:opacity-40 cursor-pointer shadow-xs"
           >
             →
           </button>
