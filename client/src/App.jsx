@@ -528,9 +528,13 @@ export default function App() {
 
           {/* ── VIEW: Reconciliation / Reports ── */}
           {(activeTab === 'reports' || activeTab === 'reconciliation') && (
-            <div className="flex flex-col gap-6 max-w-5xl">
+            <div className="flex flex-col gap-6 max-w-5xl animate-fade-in">
               <ReportPanel
+                initialReport={reportData}
                 hasRunAgent={aiStatus === 'COMPLETED'}
+                isRunning={isRunning}
+                onRunAgent={handleRunAgent}
+                onExport={() => exportCsv({ startDate: dateRange.startDate, endDate: dateRange.endDate, status: 'reconciled' })}
                 onViewExceptions={() => {
                   setExceptionsFilter('all');
                   setActiveTab('exceptions');

@@ -73,7 +73,7 @@ export function QuixoticTopNav({
         {/* Center: Rounded Pill Navigation Menu (Tablet & Desktop: >= 768px) */}
         <nav className="hidden md:flex items-center gap-0.5 lg:gap-1 bg-white border border-gray-200/80 rounded-full px-1.5 lg:px-2 py-1 shadow-xs">
           {tabs.map((tab) => {
-            const isActive = activeTab === tab.id || (tab.id === 'reconciliation' && activeTab === 'reports');
+            const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
@@ -164,7 +164,7 @@ export function QuixoticTopNav({
               {/* Navigation Items (8 Items) */}
               <div className="flex flex-col gap-1">
                 {tabs.map((tab) => {
-                  const isActive = activeTab === tab.id || (tab.id === 'reconciliation' && activeTab === 'reports');
+                  const isActive = activeTab === tab.id;
                   const Icon = tab.Icon;
                   return (
                     <button
