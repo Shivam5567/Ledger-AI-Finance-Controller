@@ -20,6 +20,7 @@ router.post('/run', async (req, res) => {
 
   try {
     resetCallCount();
+    const startTime = Date.now();
 
     let transactions = getAllTransactions();
     const total = transactions.length;
@@ -53,9 +54,10 @@ router.post('/run', async (req, res) => {
     const geminiCallCount = getCallCount();
     console.log(`[Pipeline] Complete — ${geminiCallCount} Groq API calls used`);
 
-    // Save last reviewed timestamp
+    const durationSeconds = ((Date.now() - startTime) / 1000).toFixed(1);
     setMetadata('last_reviewed_at', new Date().toISOString());
     setMetadata('last_tx_count', String(total));
+    setMetadata('last_run_duration', durationSeconds);
 
     sendEvent({
       stage: 'complete',
@@ -63,6 +65,7 @@ router.post('/run', async (req, res) => {
       totalSteps: 5,
       progress: 1,
       message: `Done — ${issueCount} issues found`,
+      durationSeconds,
       issueCount,
       issueValue,
       pendingCount,

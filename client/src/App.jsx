@@ -1,31 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
-import SummaryCards from './components/SummaryCards';
-import SpendChart from './components/SpendChart';
-import TransactionTable from './components/TransactionTable';
-import ChatBox from './components/ChatBox';
-import RunAgentButton from './components/RunAgentButton';
-import AgentTrace from './components/AgentTrace';
-import HeroMetrics from './components/HeroMetrics';
-import ProactiveBanner from './components/ProactiveBanner';
+import Sidebar from './components/Sidebar';
+import TopBar from './components/TopBar';
+import EmptyState from './components/EmptyState';
+import HeroSummary from './components/HeroSummary';
+import AgentTraceInline from './components/AgentTraceInline';
 import ReportPanel from './components/ReportPanel';
+import ForecastCard from './components/ForecastCard';
+import TransactionTable from './components/TransactionTable';
+import ExceptionsPage from './components/ExceptionsPage';
+import SettingsPage from './components/SettingsPage';
+import SettlementPanel from './components/SettlementPanel';
 import { useTransactions, useSummary, useIngest, useRunAgent, useAction, useExport } from './hooks/useApi';
 
 export default function App() {
-  const [hasIngested, setHasIngested] = useState(false);
-  const [hasRunAgent, setHasRunAgent] = useState(false);
-  const [agentStage, setAgentStage]   = useState(null);
+  const [activeTab, setActiveTab]       = useState('dashboard');
+  const [hasIngested, setHasIngested]   = useState(false);
+  const [hasRunAgent, setHasRunAgent]   = useState(false);
+  const [agentStage, setAgentStage]     = useState(null);
   const [agentProgress, setAgentProgress] = useState(0);
-  const [agentResult, setAgentResult] = useState(null);
-  const [showTrace, setShowTrace]     = useState(false);
-  const [chatOpen, setChatOpen]       = useState(false);
-  const [showRules, setShowRules]     = useState(false);
+  const [agentResult, setAgentResult]   = useState(null);
+  const [chatOpen, setChatOpen]         = useState(false);
 
   const { transactions, refetch: refetchTx }     = useTransactions();
   const { summary,      refetch: refetchSummary } = useSummary();
   const { ingest, loading: isIngesting }          = useIngest();
   const { approve, dismiss, reset }               = useAction();
   const { exportCsv }                             = useExport();
+
+  // Check on initial load if data already exists in DB
+  useEffect(() => {
+    refetchTx();
+    refetchSummary();
+  }, [refetchTx, refetchSummary]);
+
+  useEffect(() => {
+    if (transactions.length > 0) {
+      setHasIngested(true);
+      // If transactions already have categories or flags, agent has been run
+      const hasCategories = transactions.some(t => t.category);
+      if (hasCategories) {
+        setHasRunAgent(true);
+      }
+    }
+  }, [transactions]);
 
   const handleProgress = (data) => {
     setAgentStage(data.stage);
@@ -36,250 +54,209 @@ export default function App() {
       setHasRunAgent(true);
       refetchTx();
       refetchSummary();
-      setTimeout(() => {
-        setAgentStage('complete');
-        setAgentProgress(1);
-      }, 500);
     }
   };
 
   const { runAgent, isRunning } = useRunAgent(handleProgress);
 
   const handleIngest = async () => {
-    await ingest();
-    setHasIngested(true);
-    setHasRunAgent(false);
-    setAgentResult(null);
-    setShowTrace(false);
-    refetchTx();
+    try {
+      await ingest();
+      setHasIngested(true);
+      setHasRunAgent(false);
+      setAgentResult(null);
+      setAgentStage(null);
+      await refetchTx();
+      await refetchSummary();
+    } catch (e) {
+      console.error('Ingest error:', e);
+    }
   };
 
   const handleRunAgent = () => {
-    setAgentStage(null);
+    setAgentStage('ingest');
     setAgentResult(null);
-    setShowTrace(true);
     runAgent();
   };
 
-  const handleApprove = async (id) => { await approve(id); refetchTx(); refetchSummary(); };
-  const handleDismiss = async (id) => { await dismiss(id); refetchTx(); refetchSummary(); };
-  const handleReset   = async (id) => { await reset(id);   refetchTx(); refetchSummary(); };
+  const handleApprove = async (id) => {
+    await approve(id);
+    await refetchTx();
+    await refetchSummary();
+  };
 
-  const pendingCount  = transactions.filter(t => t.action_status === 'pending').length;
-  const resolvedCount = transactions.filter(t => t.action_status === 'approved' || t.action_status === 'dismissed').length;
+  const handleDismiss = async (id) => {
+    await dismiss(id);
+    await refetchTx();
+    await refetchSummary();
+  };
+
+  const handleReset = async (id) => {
+    await reset(id);
+    await refetchTx();
+    await refetchSummary();
+  };
+
+  // Calculate exception count for sidebar badge
+  const unresolvedExceptionCount = transactions.filter(
+    (t) =>
+      ((t.flags && t.flags.length > 0) || t.match_status === 'exception') &&
+      t.action_status !== 'approved' &&
+      t.action_status !== 'dismissed'
+  ).length;
+
+  // Title mappings
+  const pageTitles = {
+    dashboard: {
+      title: 'Dashboard',
+      subtitle: `${transactions.length} transactions indexed · automated reconciliation controller`,
+    },
+    transactions: {
+      title: 'Transactions',
+      subtitle: `Viewing all ${transactions.length} indexed transactions`,
+    },
+    exceptions: {
+      title: 'Exceptions',
+      subtitle: `${unresolvedExceptionCount} items flagged for human review`,
+    },
+    forecast: {
+      title: 'Spend Forecast',
+      subtitle: 'Next-month forward projections based on 2mo history',
+    },
+    settings: {
+      title: 'Settings',
+      subtitle: 'Engine status, model mapping, and agent memory rules',
+    },
+  };
+
+  const currentHeader = pageTitles[activeTab] || pageTitles.dashboard;
 
   return (
-    <Layout isRunning={isRunning} progress={agentProgress}>
-      <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-28">
-
-        {/* ── Landing state ────────────────────────────────────── */}
+    <Layout
+      sidebar={
+        <Sidebar
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+          exceptionCount={unresolvedExceptionCount}
+          transactionCount={transactions.length}
+        />
+      }
+      topbar={
+        <TopBar
+          title={currentHeader.title}
+          subtitle={hasIngested ? currentHeader.subtitle : null}
+          onRunAgent={handleRunAgent}
+          isRunning={isRunning}
+          onToggleChat={() => setChatOpen(prev => !prev)}
+          chatOpen={chatOpen}
+          hasIngested={hasIngested}
+          onIngest={handleIngest}
+          isIngesting={isIngesting}
+          onExport={exportCsv}
+          hasRunAgent={hasRunAgent}
+        />
+      }
+    >
+      <div className="flex flex-col gap-8 pb-16">
+        {/* ── 1. Empty State (when no transactions loaded) ── */}
         {!hasIngested && (
-          <div className="flex flex-col items-center justify-center py-24 animate-slide-up">
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center text-4xl mb-6 shadow-xl shadow-blue-500/20">
-              ⚡
-            </div>
-            <h2 className="text-4xl font-black mb-3 bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-              Welcome to Ledger AI
-            </h2>
-            <p className="text-slate-400 mb-8 max-w-md text-center text-base leading-relaxed">
-              Your AI-powered finance controller. Load your raw transaction data to start automated categorization, reconciliation, and anomaly detection.
-            </p>
-            <button
-              onClick={handleIngest}
-              disabled={isIngesting}
-              className="glass-button px-10 py-4 rounded-2xl text-lg font-bold flex items-center gap-3 hover:scale-105 transition-transform cursor-pointer shadow-lg shadow-blue-500/10"
-            >
-              {isIngesting ? '⏳ Loading…' : '📂 Load Transactions'}
-            </button>
-          </div>
+          <EmptyState onIngest={handleIngest} isIngesting={isIngesting} />
         )}
 
-        {/* ── Dashboard ─────────────────────────────────────────── */}
+        {/* ── Loaded State ── */}
         {hasIngested && (
           <>
-            {/* Proactive banner (only shown before first agent run) */}
-            {!hasRunAgent && (
-              <ProactiveBanner onReviewNow={handleRunAgent} />
-            )}
-
-            {/* Top bar */}
-            <div className="flex flex-wrap justify-between items-center gap-4 animate-fade-in">
-              <div>
-                <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  {transactions.length} transactions loaded
-                  {hasRunAgent && resolvedCount > 0 && ` · ${resolvedCount} resolved`}
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                {hasRunAgent && (
-                  <>
-                    {/* Export CSV */}
-                    <button
-                      onClick={exportCsv}
-                      className="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 transition-colors flex items-center gap-1.5"
-                    >
-                      ⬇️ Export CSV
-                    </button>
-
-                    {/* Agent memory rules */}
-                    <button
-                      onClick={() => setShowRules(!showRules)}
-                      className="px-4 py-2 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 transition-colors flex items-center gap-1.5"
-                    >
-                      🧠 Agent Memory
-                    </button>
-                  </>
+            {/* ── View: Dashboard ── */}
+            {activeTab === 'dashboard' && (
+              <div className="flex flex-col gap-8 animate-fade-in">
+                {/* Agent Thinking Trace (Inline step list) */}
+                {(isRunning || agentResult || agentStage) && (
+                  <AgentTraceInline
+                    currentStage={agentStage}
+                    isRunning={isRunning}
+                    agentResult={agentResult}
+                    txCount={transactions.length || 55}
+                  />
                 )}
 
-                <button
-                  onClick={handleIngest}
-                  disabled={isIngesting}
-                  className="px-4 py-2 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-colors"
-                >
-                  🔄 Re-ingest
-                </button>
+                {/* Hero Summary: Net Position + 3 supporting stats */}
+                <HeroSummary summary={summary} transactions={transactions} />
 
-                <RunAgentButton
-                  onRun={handleRunAgent}
-                  isRunning={isRunning}
-                  stage={agentStage}
-                  progress={agentProgress}
+                {/* Report Panel: prominent match rate bar + exception breakdown */}
+                <ReportPanel
+                  hasRunAgent={hasRunAgent}
+                  onViewExceptions={() => setActiveTab('exceptions')}
+                />
+
+                {/* Forecast Card: next month projected spend */}
+                <ForecastCard summary={summary} />
+
+                {/* Transaction Table: spreadsheet clean look */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[15px] font-semibold text-[#F5F5F5] tracking-tight">
+                      Recent Activity
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab('transactions')}
+                      className="text-[13px] text-[#4F6EF7] hover:text-[#3D5DE8] font-medium transition-colors cursor-pointer"
+                    >
+                      View full ledger →
+                    </button>
+                  </div>
+                  <TransactionTable
+                    transactions={transactions}
+                    onApprove={handleApprove}
+                    onDismiss={handleDismiss}
+                    onReset={handleReset}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ── View: Transactions ── */}
+            {activeTab === 'transactions' && (
+              <div className="animate-fade-in">
+                <TransactionTable
+                  transactions={transactions}
+                  onApprove={handleApprove}
+                  onDismiss={handleDismiss}
+                  onReset={handleReset}
                 />
               </div>
-            </div>
-
-            {/* Agent Memory panel */}
-            {showRules && (
-              <AgentMemoryPanel onClose={() => setShowRules(false)} />
             )}
 
-            {/* Agent Thinking Trace */}
-            {showTrace && (
-              <div className="animate-slide-down">
-                <AgentTrace
-                  currentStage={agentStage}
-                  isRunning={isRunning}
-                  isComplete={!isRunning && agentResult !== null}
-                  agentResult={agentResult}
-                  onClose={() => setShowTrace(false)}
-                />
-              </div>
-            )}
-
-            {/* Hero Metrics Banner */}
-            {hasRunAgent && agentResult && (
-              <HeroMetrics agentResult={agentResult} transactions={transactions} />
-            )}
-
-            {/* Summary Cards */}
-            {hasRunAgent && summary && (
-              <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                <SummaryCards summary={summary} />
-              </div>
-            )}
-
-            {/* Spend Chart */}
-            {hasRunAgent && summary?.byCategory?.length > 0 && (
-              <div className="animate-slide-up" style={{ animationDelay: '0.15s' }}>
-                <SpendChart byCategory={summary.byCategory} />
-              </div>
-            )}
-
-            {/* Reconciliation Report */}
-            {hasRunAgent && (
-              <div className="animate-slide-up" style={{ animationDelay: '0.18s' }}>
-                <ReportPanel hasRunAgent={hasRunAgent} />
-              </div>
-            )}
-
-            {/* Transaction Table */}
-            <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              <TransactionTable
+            {/* ── View: Exceptions ── */}
+            {activeTab === 'exceptions' && (
+              <ExceptionsPage
                 transactions={transactions}
                 onApprove={handleApprove}
                 onDismiss={handleDismiss}
-                onReset={handleReset}
               />
-            </div>
+            )}
+
+            {/* ── View: Forecast ── */}
+            {activeTab === 'forecast' && (
+              <div className="animate-fade-in flex flex-col gap-6 max-w-4xl">
+                <ForecastCard summary={summary} />
+              </div>
+            )}
+
+            {/* ── View: Settings ── */}
+            {activeTab === 'settings' && (
+              <SettingsPage
+                onIngest={handleIngest}
+                isIngesting={isIngesting}
+                onExport={exportCsv}
+                txCount={transactions.length}
+              />
+            )}
           </>
         )}
       </div>
 
-      {/* Chat FAB (only after agent run) */}
-      {hasRunAgent && (
-        <ChatBox isOpen={chatOpen} onToggle={() => setChatOpen(!chatOpen)} />
-      )}
+      {/* ── Slide-in Settlement Q&A Panel ── */}
+      <SettlementPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
     </Layout>
-  );
-}
-
-// ── Agent Memory Panel ──────────────────────────────────────────
-function AgentMemoryPanel({ onClose }) {
-  const [rules, setRules] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/rules')
-      .then(r => r.json())
-      .then(data => { setRules(data); setLoading(false); })
-      .catch(() => setLoading(false));
-  }, []);
-
-  const deleteRule = async (id) => {
-    await fetch(`/api/rules/${id}`, { method: 'DELETE' });
-    setRules(prev => prev.filter(r => r.id !== id));
-  };
-
-  return (
-    <div className="glass-card p-5 border border-purple-500/20 animate-slide-down">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-200">🧠 Agent Memory — Dismissed Rules</h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            When you dismiss a flag, the agent remembers and won't re-flag similar transactions next run.
-          </p>
-        </div>
-        <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-sm">✕</button>
-      </div>
-
-      {loading && <p className="text-slate-500 text-sm">Loading…</p>}
-
-      {!loading && rules.length === 0 && (
-        <p className="text-slate-500 text-sm py-2">
-          No dismissed rules yet. Dismiss a flagged transaction to create one.
-        </p>
-      )}
-
-      {!loading && rules.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {rules.map(rule => (
-            <div key={rule.id} className="flex items-center justify-between bg-white/5 rounded-lg px-4 py-2.5 border border-white/5">
-              <div>
-                <span className="text-xs font-medium text-slate-300">
-                  <span className={`mr-2 px-1.5 py-0.5 rounded text-[10px] font-bold
-                    ${rule.flag_type === 'anomaly'   ? 'bg-red-500/20 text-red-400' :
-                      rule.flag_type === 'duplicate' ? 'bg-orange-500/20 text-orange-400' :
-                                                       'bg-yellow-500/20 text-yellow-400'}`}>
-                    {rule.flag_type}
-                  </span>
-                  "{rule.description_pattern}…"
-                </span>
-                <span className="text-[10px] text-slate-500 ml-2">
-                  dismissed {new Date(rule.dismissed_at).toLocaleDateString()}
-                </span>
-              </div>
-              <button
-                onClick={() => deleteRule(rule.id)}
-                className="text-xs text-red-400/70 hover:text-red-400 transition-colors ml-4"
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

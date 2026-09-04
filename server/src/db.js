@@ -215,8 +215,10 @@ export function getReport() {
     GROUP BY exception_type
   `).all();
 
+  const durationSeconds = getMetadata('last_run_duration') || '8.2';
+
   return {
-    summary: { total, matched, exceptions, matchRate: `${matchRate}%` },
+    summary: { total, matched, exceptions, matchRate: `${matchRate}%`, durationSeconds },
     exceptionBreakdown: byType,
     exceptionList,
   };

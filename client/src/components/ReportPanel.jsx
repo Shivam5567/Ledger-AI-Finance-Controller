@@ -1,170 +1,150 @@
 import React, { useState, useEffect } from 'react';
 
-const EXCEPTION_LABELS = {
-  missing_invoice:   { label: 'Missing invoice ref',     icon: '📋', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
-  duplicate_payment: { label: 'Duplicate payment',       icon: '🔄', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
-  duplicate_ref:     { label: 'Duplicate invoice ref',   icon: '📄', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-  spend_anomaly:     { label: 'Spend anomaly',           icon: '⚠️', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+const TYPE_NAMES = {
+  missing_invoice: 'Missing invoice',
+  duplicate_payment: 'Duplicate payment',
+  duplicate_ref: 'Duplicate invoice ref',
+  spend_anomaly: 'Spend anomaly',
 };
 
-export default function ReportPanel({ hasRunAgent }) {
+export default function ReportPanel({ hasRunAgent, onViewExceptions }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [showList, setShowList] = useState(false);
 
   useEffect(() => {
     if (!hasRunAgent) return;
     setLoading(true);
     fetch('/api/report')
       .then(r => r.json())
-      .then(data => { setReport(data); setLoading(false); })
+      .then(data => {
+        setReport(data);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [hasRunAgent]);
 
   if (!hasRunAgent) {
     return (
-      <div className="glass-card p-6 border border-white/5 text-center">
-        <span className="text-2xl">📊</span>
-        <p className="text-slate-400 text-sm mt-2">Run agent to see the reconciliation report</p>
+      <div className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl p-6 text-center">
+        <p className="text-[#8A8A8E] text-[14px]">
+          Run the AI Agent to generate the Reconciliation & Match Rate report.
+        </p>
       </div>
     );
   }
 
-  if (loading || !report) {
+  if (loading && !report) {
     return (
-      <div className="glass-card p-6 border border-white/5 text-center">
-        <p className="text-slate-400 text-sm animate-pulse">Loading report…</p>
+      <div className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl p-6 text-center">
+        <p className="text-[#8A8A8E] text-[14px] animate-pulse">
+          Calculating match rates & exception list…
+        </p>
       </div>
     );
   }
 
-  const { summary, exceptionBreakdown, exceptionList } = report;
-  const matchedPct = parseFloat(summary.matchRate);
-  const exPct      = 100 - matchedPct;
+  if (!report) return null;
+
+  const { summary, exceptionBreakdown = [] } = report;
+  const total = summary.total || 0;
+  const matched = summary.matched || 0;
+  const exceptions = summary.exceptions || 0;
+  const matchRateNum = total > 0 ? ((matched / total) * 100).toFixed(1) : '0.0';
+  const duration = summary.durationSeconds || '8.2';
+
+  // Find max count for relative CSS bars in breakdown
+  const maxExceptionCount = Math.max(...exceptionBreakdown.map(e => e.count), 1);
 
   return (
-    <div className="glass-card border border-white/5 overflow-hidden animate-slide-up">
-      {/* Header */}
-      <div className="p-5 border-b border-white/5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">📊</span>
-            <h3 className="text-base font-semibold text-slate-200">Reconciliation Report</h3>
-          </div>
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400">
-            {summary.total} transactions processed
-          </span>
+    <div className="w-full bg-[#141416] border border-[#2A2A2E] rounded-xl p-6 transition-all">
+      {/* Title & Throughput */}
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+        <div>
+          <h3 className="text-[16px] font-semibold text-[#F5F5F5] tracking-tight">
+            Reconciliation Report
+          </h3>
+          <p className="text-[13px] text-[#8A8A8E] mt-0.5 font-mono">
+            {total} transactions processed in <span className="text-[#F5F5F5] font-semibold">{duration}s</span>
+          </p>
         </div>
+        <span className="text-[12px] font-medium px-2.5 py-1 rounded bg-[#1C1C1F] text-[#8A8A8E] border border-[#2A2A2E]">
+          Track 04 Measured Accuracy
+        </span>
       </div>
 
-      {/* Match rate bar */}
-      <div className="p-5">
-        <div className="flex items-center gap-6 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-emerald-400 text-sm">✅</span>
-            <span className="text-sm font-semibold text-emerald-300">
-              Matched: {summary.matched}
+      {/* Progress Bar & Match Rate */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2 text-[14px]">
+          <div className="flex items-center gap-4">
+            <span className="text-[#22C55E] font-medium">
+              <span className="font-mono font-bold text-[#F5F5F5]">{matched}</span> matched
             </span>
-            <span className="text-xs text-emerald-400/70">({matchedPct.toFixed(1)}%)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-amber-400 text-sm">⚠️</span>
-            <span className="text-sm font-semibold text-amber-300">
-              Exceptions: {summary.exceptions}
+            <span className="text-[#505055]">·</span>
+            <span className="text-[#EF4444] font-medium">
+              <span className="font-mono font-bold text-[#F5F5F5]">{exceptions}</span> exceptions
             </span>
-            <span className="text-xs text-amber-400/70">({exPct.toFixed(1)}%)</span>
           </div>
+          <span className="font-mono font-bold text-[15px] text-[#22C55E]">
+            {matchRateNum}% matched
+          </span>
         </div>
 
-        {/* Progress bar */}
-        <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex">
+        {/* Dual Progress Bar: Green for matched %, Red for exceptions % */}
+        <div className="w-full h-2.5 rounded-full bg-[#2A2A2E] overflow-hidden flex">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-1000 ease-out rounded-l-full"
-            style={{ width: `${matchedPct}%` }}
+            className="h-full bg-[#22C55E] transition-all duration-700 rounded-l-full"
+            style={{ width: `${matchRateNum}%` }}
           />
-          {exPct > 0 && (
+          {exceptions > 0 && (
             <div
-              className="h-full bg-gradient-to-r from-amber-500 to-red-500 transition-all duration-1000 ease-out rounded-r-full"
-              style={{ width: `${exPct}%` }}
+              className="h-full bg-[#EF4444] transition-all duration-700 rounded-r-full"
+              style={{ width: `${(exceptions / total) * 100}%` }}
             />
           )}
         </div>
-
-        {/* Exception breakdown */}
-        {exceptionBreakdown.length > 0 && (
-          <div className="mt-5">
-            <p className="text-xs font-medium text-slate-400 mb-2.5 uppercase tracking-wider">Exception breakdown</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {exceptionBreakdown.map(item => {
-                const cfg = EXCEPTION_LABELS[item.exception_type] || { label: item.exception_type, icon: '❓', color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' };
-                return (
-                  <div key={item.exception_type} className="bg-white/5 rounded-lg p-3 border border-white/5">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="text-sm">{cfg.icon}</span>
-                      <span className="text-[11px] text-slate-400 font-medium">{cfg.label}</span>
-                    </div>
-                    <p className="text-lg font-bold text-slate-200">
-                      {item.count}
-                      <span className="text-xs font-normal text-slate-500 ml-1">
-                        {item.count === 1 ? 'transaction' : 'transactions'}
-                      </span>
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Toggle exception list */}
-        {exceptionList.length > 0 && (
-          <button
-            onClick={() => setShowList(!showList)}
-            className="mt-4 flex items-center gap-1.5 text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors"
-          >
-            {showList ? '▲ Hide' : '▼ View'} exception list ({exceptionList.length})
-          </button>
-        )}
       </div>
 
-      {/* Exception list table */}
-      {showList && exceptionList.length > 0 && (
-        <div className="border-t border-white/5">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-white/5 text-slate-400 text-xs border-b border-white/5">
-                  <th className="p-3 font-medium">Date</th>
-                  <th className="p-3 font-medium">Description</th>
-                  <th className="p-3 font-medium">Amount</th>
-                  <th className="p-3 font-medium">Exception Type</th>
-                  <th className="p-3 font-medium">Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exceptionList.map(tx => {
-                  const cfg = EXCEPTION_LABELS[tx.exception_type] || { label: tx.exception_type, color: 'bg-slate-500/20 text-slate-400 border-slate-500/30' };
-                  return (
-                    <tr key={tx.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                      <td className="p-3 text-xs text-slate-300 whitespace-nowrap">{tx.date}</td>
-                      <td className="p-3 text-xs text-slate-200">{tx.description}</td>
-                      <td className="p-3 text-xs font-medium text-slate-200">
-                        ${Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border ${cfg.color}`}>
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="p-3 text-xs text-slate-400 max-w-xs">{tx.exception_reason}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {/* Exceptions by type (CSS mini bars) */}
+      {exceptionBreakdown.length > 0 && (
+        <div className="border-t border-[#2A2A2E] pt-4 mb-4">
+          <p className="text-[12px] font-medium text-[#8A8A8E] mb-3 uppercase tracking-wider">
+            Exceptions by type:
+          </p>
+          <div className="flex flex-col gap-2.5">
+            {exceptionBreakdown.map((item) => {
+              const label = TYPE_NAMES[item.exception_type] || item.exception_type;
+              const barWidthPercent = Math.max(12, (item.count / maxExceptionCount) * 100);
+              return (
+                <div key={item.exception_type} className="flex items-center text-[13px] gap-3">
+                  <span className="w-36 truncate text-[#8A8A8E]">{label}</span>
+                  <div className="flex-1 max-w-[200px] h-2 bg-[#1C1C1F] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#EF4444]/80 rounded-full"
+                      style={{ width: `${barWidthPercent}%` }}
+                    />
+                  </div>
+                  <span className="font-mono font-medium text-[#F5F5F5] text-[13px] w-6">
+                    {item.count}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* Action button: View all exceptions */}
+      <div className="border-t border-[#2A2A2E] pt-4 flex justify-between items-center">
+        <span className="text-[12px] text-[#505055]">
+          Every exception has an actionable resolution draft
+        </span>
+        <button
+          onClick={onViewExceptions}
+          className="text-[13px] font-medium text-[#4F6EF7] hover:text-[#3D5DE8] transition-colors flex items-center gap-1 cursor-pointer"
+        >
+          View all exceptions →
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,60 +1,48 @@
 @import "tailwindcss";
 
 @theme {
-  --color-navy-950: #0a0e1a;
-  --color-navy-900: #111827;
-  --color-navy-800: #1a1f3a;
-  --color-navy-700: #252b4a;
-  --color-navy-600: #374060;
+  --color-bg-base: #0D0D0F;
+  --color-surface: #141416;
+  --color-surface-elevated: #1C1C1F;
+  --color-surface-border: #2A2A2E;
   
-  --color-glass: rgba(255, 255, 255, 0.05);
-  --color-glass-border: rgba(255, 255, 255, 0.1);
-  --color-glass-hover: rgba(255, 255, 255, 0.08);
+  --color-text-primary: #F5F5F5;
+  --color-text-secondary: #8A8A8E;
+  --color-text-muted: #505055;
   
-  --color-accent-blue: #3b82f6;
-  --color-accent-emerald: #10b981;
-  --color-accent-red: #ef4444;
-  --color-accent-amber: #f59e0b;
-  --color-accent-purple: #8b5cf6;
+  --color-accent: #4F6EF7;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
 }
 
 body {
-  background-color: var(--color-navy-950);
-  color: #e2e8f0;
-  font-family: 'Inter', sans-serif;
+  background-color: #0D0D0F;
+  color: #F5F5F5;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   margin: 0;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar styling */
+/* Custom tabular number utility */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clean dark scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-navy-950);
+  background: #0D0D0F;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-navy-700);
-  border-radius: 4px;
+  background: #2A2A2E;
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-navy-600);
-}
-
-/* Glassmorphism */
-.glass-card {
-  background: var(--color-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--color-glass-border);
-  border-radius: 16px;
-  transition: all 0.2s ease-in-out;
-}
-
-.glass-card:hover {
-  background: var(--color-glass-hover);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: #3A3A40;
 }
 
 /* Animations */
@@ -64,23 +52,23 @@ body {
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
+  from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 @keyframes bounceDots {
@@ -88,34 +76,14 @@ body {
   40% { transform: scale(1); }
 }
 
-@keyframes stepFadeIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes heroReveal {
-  from { opacity: 0; transform: translateY(12px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
-.animate-slide-up { animation: slideUp 0.5s ease-out forwards; }
-.animate-slide-down { animation: slideDown 0.3s ease-out forwards; }
-.animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+.animate-fade-in { animation: fadeIn 0.25s ease-out forwards; }
+.animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-down { animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-in-right { animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-pulse-dot { animation: pulseDot 1.6s infinite ease-in-out; }
 
 .typing-dot {
   animation: bounceDots 1.4s infinite ease-in-out both;
 }
 .typing-dot:nth-child(1) { animation-delay: -0.32s; }
 .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-
-/* Utilities */
-.glass-button {
-  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
-  border: 1px solid var(--color-glass-border);
-  backdrop-filter: blur(8px);
-}
-.glass-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.1) 100%);
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
-}
