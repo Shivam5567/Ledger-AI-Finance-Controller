@@ -1,52 +1,52 @@
 import React, { useState } from 'react';
 import { ArrowUpRightIcon, VendorBadge } from './Icons';
 
-// ── CARD 1: Payment Goal & VISA Credit Card Widget ──────────────────────
+// ── CARD 1: Ledger Position & Controller Card Widget ───────────────────
 export function QuixoticCardWidget({ summary, transactions = [] }) {
-  const net = summary?.net || 78989.09;
+  const net = summary?.net !== undefined ? summary.net : -62570;
   const isPositive = net >= 0;
-  const formattedNet = Math.abs(net).toLocaleString('en-US', { minimumFractionDigits: 2 });
-  const weeklyRevenue = summary?.totalIncome ? (summary.totalIncome * 0.25).toLocaleString('en-US', { maximumFractionDigits: 0 }) : '3,945';
+  const formattedNet = `${isPositive ? '+' : '-'}$${Math.abs(net).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+  const periodInflow = summary?.totalIncome ? summary.totalIncome.toLocaleString('en-US', { maximumFractionDigits: 0 }) : '71,000';
 
   return (
     <div className="quixotic-card p-6 flex flex-col justify-between">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 tracking-tight">Payment Goal</h3>
-          <p className="text-xs text-gray-400">Total amount goal</p>
+          <h3 className="text-sm font-semibold text-gray-900 tracking-tight">Ledger Position</h3>
+          <p className="text-xs text-gray-400">Total net balance this period</p>
         </div>
         <ArrowUpRightIcon />
       </div>
 
-      {/* Deep Emerald VISA Card Widget matching image */}
+      {/* Deep Emerald Controller Card Widget matching image */}
       <div className="rounded-2xl bg-gradient-to-br from-[#00875A] to-[#006644] text-white p-5 shadow-sm relative overflow-hidden mb-5">
         {/* Subtle decorative card shine */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none" />
 
         <div className="flex items-center justify-between mb-3">
-          <span className="font-bold tracking-widest text-base italic">VISA</span>
-          <span className="text-[11px] font-medium text-emerald-100/90">Credit Card</span>
+          <span className="font-bold tracking-wider text-xs uppercase text-emerald-100 font-mono">LEDGER AI</span>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/20 text-white">Active Controller</span>
         </div>
 
         <div className="my-3">
           <div className="text-2xl font-bold tracking-tight font-mono tabular-nums">
-            $ {formattedNet}
+            {formattedNet}
           </div>
         </div>
 
         <div className="flex items-center justify-between text-xs text-emerald-100/80 font-mono pt-1">
-          <span className="tracking-wider">•••• 909090</span>
-          <span>EXP 09/26</span>
+          <span className="tracking-wider">{transactions.length || 55} Transactions</span>
+          <span>SQLite Engine</span>
         </div>
       </div>
 
-      {/* Weekly Revenue & Growth Badge */}
+      {/* Period Inflow & Growth Badge */}
       <div className="pt-1">
-        <span className="text-xs text-gray-400 block mb-1">Weekly Revenue</span>
+        <span className="text-xs text-gray-400 block mb-1">Period Inflow</span>
         <div className="flex items-center justify-between">
           <span className="text-lg font-bold text-gray-900 font-mono tabular-nums">
-            +{weeklyRevenue} USD
+            +${periodInflow} USD
           </span>
           <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-[#007A4D] border border-emerald-200/60">
             +12.8%
