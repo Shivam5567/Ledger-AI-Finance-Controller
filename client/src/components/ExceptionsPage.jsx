@@ -1,33 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { VendorBadge } from './Icons';
+import { VendorBadge, LightningBoltIcon, CheckIcon, ChatBubbleIcon, AlertTriangleIcon, SparklesIcon } from './Icons';
 
 const EXCEPTION_CONFIG = {
   missing_invoice: {
     title: 'MISSING INVOICE',
     actionLabel: 'Add invoice ref',
     actionSecondary: 'Dismiss',
-    icon: '📋',
     badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
   },
   duplicate_payment: {
     title: 'DUPLICATE PAYMENT',
     actionLabel: 'Request refund',
     actionSecondary: 'Dismiss',
-    icon: '🔄',
     badgeClass: 'bg-red-50 text-red-700 border-red-200',
   },
   duplicate_ref: {
     title: 'DUPLICATE INVOICE REF',
     actionLabel: 'Verify invoice',
     actionSecondary: 'Dismiss',
-    icon: '📄',
     badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
   },
   spend_anomaly: {
     title: 'SPEND ANOMALY',
     actionLabel: 'Review & approve',
     actionSecondary: 'Dismiss',
-    icon: '⚠️',
     badgeClass: 'bg-orange-50 text-orange-700 border-orange-200',
   },
 };
@@ -119,7 +115,7 @@ export default function ExceptionsPage({
                 </>
               ) : (
                 <>
-                  <span className="text-white font-bold">⚡</span>
+                  <LightningBoltIcon className="w-3.5 h-3.5 text-white" />
                   <span>Run AI Reconciliation</span>
                 </>
               )}
@@ -155,13 +151,14 @@ export default function ExceptionsPage({
         ))}
         <button
           onClick={() => setSelectedFilter('resolved')}
-          className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer ${
+          className={`px-3.5 py-1 rounded-full font-medium transition-all cursor-pointer inline-flex items-center gap-1.5 ${
             selectedFilter === 'resolved'
               ? 'bg-[#007A4D] text-white font-semibold shadow-2xs'
               : 'text-emerald-700 hover:text-emerald-900'
           }`}
         >
-          ✓ Resolved ({resolvedExceptions.length})
+          <CheckIcon className="w-3 h-3" />
+          <span>Resolved ({resolvedExceptions.length})</span>
         </button>
       </div>
 
@@ -169,7 +166,9 @@ export default function ExceptionsPage({
       {selectedFilter === 'resolved' ? (
         resolvedExceptions.length === 0 ? (
           <div className="quixotic-card p-12 text-center">
-            <div className="text-3xl mb-2">📋</div>
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-50 flex items-center justify-center text-[#007A4D]">
+              <CheckIcon className="w-6 h-6 text-[#007A4D]" />
+            </div>
             <h3 className="text-base font-bold text-gray-900 mb-1">
               No Resolved Exceptions Yet
             </h3>
@@ -180,7 +179,7 @@ export default function ExceptionsPage({
         ) : (
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-800">
-              <span>✓</span>
+              <CheckIcon className="w-3.5 h-3.5 text-emerald-600" />
               <span>RESOLVED & AUTHORIZED EXCEPTIONS</span>
               <span className="text-gray-300">·</span>
               <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-[#007A4D] font-mono text-[11px]">
@@ -227,7 +226,10 @@ export default function ExceptionsPage({
                             ? 'bg-emerald-100 text-[#007A4D] border-emerald-200'
                             : 'bg-gray-100 text-gray-700 border-gray-200'
                         }`}>
-                          {isApproved ? '✓ APPROVED' : 'DISMISSED'}
+                          <span className="inline-flex items-center gap-1">
+                            {isApproved && <CheckIcon className="w-3 h-3 text-[#007A4D]" />}
+                            <span>{isApproved ? 'APPROVED' : 'DISMISSED'}</span>
+                          </span>
                         </span>
                       </div>
                     </div>
@@ -255,9 +257,9 @@ export default function ExceptionsPage({
                       {onAnalyzeWithCopilot && (
                         <button
                           onClick={() => onAnalyzeWithCopilot(tx)}
-                          className="px-3 py-1.5 rounded-full text-xs font-medium bg-white hover:bg-gray-50 text-[#007A4D] border border-emerald-200 transition-all cursor-pointer flex items-center gap-1 ml-auto"
+                          className="px-3 py-1.5 rounded-full text-xs font-medium bg-white hover:bg-gray-50 text-[#007A4D] border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 ml-auto"
                         >
-                          <span>💬</span>
+                          <ChatBubbleIcon className="w-3.5 h-3.5 text-[#007A4D]" />
                           <span>Analyze with Copilot</span>
                         </button>
                       )}
@@ -272,7 +274,9 @@ export default function ExceptionsPage({
         /* ── VIEW: Open Exceptions ── */
         unresolvedExceptions.length === 0 ? (
           <div className="quixotic-card p-12 text-center">
-            <div className="text-4xl mb-3">🎉</div>
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-100 flex items-center justify-center text-[#007A4D]">
+              <CheckIcon className="w-6 h-6 text-[#007A4D]" />
+            </div>
             <h3 className="text-base font-bold text-gray-900 mb-1">
               All Exceptions Resolved
             </h3>
@@ -299,7 +303,6 @@ export default function ExceptionsPage({
               title: typeKey.toUpperCase(),
               actionLabel: 'Take Action',
               actionSecondary: 'Dismiss',
-              icon: '⚠️',
               badgeClass: 'bg-gray-100 text-gray-700',
             };
 
@@ -307,7 +310,7 @@ export default function ExceptionsPage({
               <div key={typeKey} className="flex flex-col gap-3">
                 {/* Group Title */}
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                  <span>{config.icon}</span>
+                  <AlertTriangleIcon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span>{config.title}</span>
                   <span className="text-gray-300">·</span>
                   <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 font-mono text-[11px]">
@@ -365,8 +368,9 @@ export default function ExceptionsPage({
                         {/* AI Draft preview */}
                         {isDraftOpen && tx.action_draft && (
                           <div className="mb-4 p-4 rounded-xl bg-gray-900 text-white font-mono text-xs whitespace-pre-wrap leading-relaxed animate-fade-in shadow-inner select-text">
-                            <div className="text-[10px] text-emerald-400 uppercase tracking-wider mb-2 font-sans font-bold">
-                              🤖 AI Action Draft:
+                            <div className="text-[10px] text-emerald-400 uppercase tracking-wider mb-2 font-sans font-bold inline-flex items-center gap-1.5">
+                              <SparklesIcon className="w-3 h-3 text-emerald-400" />
+                              <span>AI Action Draft:</span>
                             </div>
                             {tx.action_draft}
                           </div>
@@ -377,9 +381,10 @@ export default function ExceptionsPage({
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => onApprove(tx.id)}
-                              className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all shadow-xs cursor-pointer"
+                              className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5"
                             >
-                              ✓ {config.actionLabel}
+                              <CheckIcon className="w-3 h-3" />
+                              <span>{config.actionLabel}</span>
                             </button>
                             <button
                               onClick={() => onDismiss(tx.id)}
@@ -390,10 +395,10 @@ export default function ExceptionsPage({
                             {onAnalyzeWithCopilot && (
                               <button
                                 onClick={() => onAnalyzeWithCopilot(tx)}
-                                className="px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200 transition-all cursor-pointer flex items-center gap-1"
+                                className="px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5"
                                 title="Ask Ledger Copilot to analyze this exception"
                               >
-                                <span>💬</span>
+                                <ChatBubbleIcon className="w-3.5 h-3.5 text-[#007A4D]" />
                                 <span>Analyze</span>
                               </button>
                             )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SettingsGearIcon, SparklesIcon, TableListIcon } from './Icons';
 
 export default function SettingsPage({ onIngest, isIngesting, onUpload, isUploading, onExport, txCount = 0 }) {
   const [rules, setRules] = useState([]);
@@ -58,7 +59,7 @@ export default function SettingsPage({ onIngest, isIngesting, onUpload, isUpload
       {/* Model & Engine Configuration Card */}
       <div className="quixotic-card p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>⚙️</span>
+          <SettingsGearIcon className="w-4 h-4 text-gray-700" />
           <span>Groq Cloud Model Architecture</span>
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -95,7 +96,7 @@ export default function SettingsPage({ onIngest, isIngesting, onUpload, isUpload
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <span>🧠</span>
+              <SparklesIcon className="w-4 h-4 text-[#007A4D]" />
               <span>Agent Memory (Dismissed Rules)</span>
             </h3>
             <p className="text-[11px] text-gray-500 mt-0.5">
@@ -143,7 +144,7 @@ export default function SettingsPage({ onIngest, isIngesting, onUpload, isUpload
       {/* Database Management Card */}
       <div className="quixotic-card p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>💾</span>
+          <TableListIcon className="w-4 h-4 text-gray-700" />
           <span>Ledger Data Management</span>
         </h3>
 

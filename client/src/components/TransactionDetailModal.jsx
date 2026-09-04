@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { VendorBadge } from './Icons';
+import { VendorBadge, CheckIcon, AlertTriangleIcon, LightningBoltIcon, ChatBubbleIcon } from './Icons';
 
 export default function TransactionDetailModal({
   transaction,
@@ -112,18 +112,18 @@ export default function TransactionDetailModal({
               transaction.action_draft && transaction.action_status === 'pending' ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/70 mt-1">
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                  🔒 Authorization Required
+                  <span>Authorization Required</span>
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200/70 mt-1">
-                  <span className="w-2 h-2 rounded-full bg-red-500" />
-                  ⚠ Exception Flagged
+                  <AlertTriangleIcon className="w-3.5 h-3.5 text-red-600" />
+                  <span>Exception Flagged</span>
                 </span>
               )
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-[#007A4D] border border-emerald-200/70 mt-1">
-                <span className="w-2 h-2 rounded-full bg-[#007A4D]" />
-                ✓ Reconciled
+                <CheckIcon className="w-3.5 h-3.5 text-[#007A4D]" />
+                <span>Reconciled</span>
               </span>
             )}
           </div>
@@ -134,7 +134,7 @@ export default function TransactionDetailModal({
           <div className="mb-4 p-4 rounded-2xl bg-red-50/70 border border-red-200/80 text-xs flex flex-col gap-2.5">
             <div className="flex items-center justify-between border-b border-red-200/60 pb-1.5">
               <span className="font-bold text-red-800 flex items-center gap-1.5">
-                <span>⚠</span>
+                <AlertTriangleIcon className="w-4 h-4 text-red-700 shrink-0" />
                 <span>Exception & Discrepancy Details</span>
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-semibold uppercase">
@@ -232,7 +232,7 @@ export default function TransactionDetailModal({
           <div className="mb-4">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs font-semibold text-gray-900 flex items-center gap-1.5">
-                <span>⚡</span>
+                <LightningBoltIcon className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span>Action Recommendation ({transaction.action_type || 'Proposal'})</span>
               </span>
               <span className="text-[10px] text-gray-400 font-mono">Requires Authorization</span>
@@ -253,7 +253,7 @@ export default function TransactionDetailModal({
               }}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200/80 transition-colors cursor-pointer"
             >
-              <span>💬</span>
+              <ChatBubbleIcon className="w-3.5 h-3.5 text-[#007A4D]" />
               <span>Explain with Copilot</span>
             </button>
           )}
@@ -282,9 +282,10 @@ export default function TransactionDetailModal({
                     if (onApprove) await onApprove(transaction.id);
                     onClose();
                   }}
-                  className="px-5 py-2 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#00603C] text-white shadow-xs hover:shadow transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#00603C] text-white shadow-xs hover:shadow transition-all cursor-pointer inline-flex items-center gap-1.5"
                 >
-                  ✓ Authorize & Execute
+                  <CheckIcon className="w-3.5 h-3.5" />
+                  <span>Authorize & Execute</span>
                 </button>
               </>
             )}

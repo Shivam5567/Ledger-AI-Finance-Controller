@@ -10,6 +10,14 @@ import {
   ChatBubbleIcon,
   ShieldAlertIcon,
   SettingsGearIcon,
+  SparklesIcon,
+  LightningBoltIcon,
+  RefreshCwIcon,
+  AlertTriangleIcon,
+  CheckIcon,
+  TagIcon,
+  CreditCardIcon,
+  CalendarIcon,
 } from './Icons';
 
 // ── 1. Top Navigation Bar (Single Responsive Navigation Model) ──────────
@@ -22,14 +30,14 @@ export function QuixoticTopNav({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'transactions', label: 'Ledger', icon: '📋' },
-    { id: 'reconciliation', label: 'Reconciliation', icon: '⚖️' },
-    { id: 'settlements', label: 'Settlements', icon: '💳' },
-    { id: 'exceptions', label: 'Exceptions', icon: '🛡️', badge: exceptionCount },
-    { id: 'reports', label: 'Reports', icon: '📈' },
-    { id: 'forecast', label: 'Forecast', icon: '📉' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
+    { id: 'dashboard', label: 'Dashboard', Icon: DashboardGridIcon },
+    { id: 'transactions', label: 'Ledger', Icon: TableListIcon },
+    { id: 'reconciliation', label: 'Reconciliation', Icon: BarChartIcon },
+    { id: 'settlements', label: 'Settlements', Icon: WalletIcon },
+    { id: 'exceptions', label: 'Exceptions', Icon: ShieldAlertIcon, badge: exceptionCount },
+    { id: 'reports', label: 'Reports', Icon: BarChartIcon },
+    { id: 'forecast', label: 'Forecast', Icon: CreditCardIcon },
+    { id: 'settings', label: 'Settings', Icon: SettingsGearIcon },
   ];
 
   const handleTabClick = (tabId) => {
@@ -89,14 +97,14 @@ export function QuixoticTopNav({
 
         {/* Right: Single Primary Copilot Button, Notifications, Avatar */}
         <div className="flex items-center gap-1.5 sm:gap-2.5">
-          {/* Exactly ONE Primary Ledger Copilot Entry Point */}
+          {/* Primary Ledger Copilot Entry Point */}
           <button
             onClick={onToggleChat}
-            className="flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
-            title="Open Settlement Q&A"
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-full bg-emerald-950 hover:bg-black text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer border border-emerald-500/40 group hover:border-emerald-400"
+            title="Ask Ledger Copilot — AI Financial Intelligence"
           >
-            <span>💬</span>
-            <span className="inline font-semibold">Settlement Q&A</span>
+            <SparklesIcon className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+            <span className="inline font-semibold tracking-tight">Ask Copilot</span>
           </button>
 
           <button
@@ -157,6 +165,7 @@ export function QuixoticTopNav({
               <div className="flex flex-col gap-1">
                 {tabs.map((tab) => {
                   const isActive = activeTab === tab.id || (tab.id === 'reconciliation' && activeTab === 'reports');
+                  const Icon = tab.Icon;
                   return (
                     <button
                       key={tab.id}
@@ -168,7 +177,7 @@ export function QuixoticTopNav({
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="text-sm">{tab.icon}</span>
+                        {Icon && <Icon className={`w-4 h-4 ${isActive ? 'text-[#007A4D]' : 'text-gray-500'}`} />}
                         <span>{tab.label}</span>
                       </div>
                       {tab.badge > 0 && (
@@ -189,10 +198,10 @@ export function QuixoticTopNav({
                   setMobileMenuOpen(false);
                   if (onToggleChat) onToggleChat();
                 }}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-950 hover:bg-black text-white text-xs font-semibold shadow-xs transition-all cursor-pointer border border-emerald-500/30"
               >
-                <span>💬</span>
-                <span>Settlement Q&A</span>
+                <SparklesIcon className="w-4 h-4 text-emerald-400" />
+                <span>Ask Ledger Copilot</span>
               </button>
             </div>
           </div>
@@ -290,9 +299,9 @@ export function QuixoticHeaderRow({
 
   const statusOptions = [
     { id: 'all', label: 'All Transactions' },
-    { id: 'reconciled', label: '✓ Reconciled Only' },
-    { id: 'exceptions', label: '⚠ Exceptions Only' },
-    { id: 'pending', label: '🔒 Pending Authorization' },
+    { id: 'reconciled', label: 'Reconciled Only' },
+    { id: 'exceptions', label: 'Exceptions Only' },
+    { id: 'pending', label: 'Pending Authorization' },
   ];
 
   const currentStatusLabel = statusOptions.find(o => o.id === statusFilter)?.label || 'All Transactions';
@@ -342,7 +351,7 @@ export function QuixoticHeaderRow({
               title="Refresh dashboard data"
               className="hover:text-emerald-700 transition-colors cursor-pointer text-xs ml-0.5 disabled:opacity-50"
             >
-              <span className={`inline-block ${isRefreshing ? 'animate-spin' : ''}`}>↻</span>
+              <RefreshCwIcon className={`w-3 h-3 inline ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
           )}
         </div>
@@ -357,7 +366,7 @@ export function QuixoticHeaderRow({
             className="flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full px-3.5 py-2 text-xs font-medium text-gray-700 shadow-xs transition-all cursor-pointer"
             title="Filter by Date Range"
           >
-            <span>📅</span>
+            <CalendarIcon className="w-3.5 h-3.5 text-gray-500" />
             <span className="font-mono text-[11px] sm:text-xs">
               {dateRange?.label || '01 Jul – 04 Aug 2026'}
             </span>
@@ -386,7 +395,7 @@ export function QuixoticHeaderRow({
                       }`}
                     >
                       <span>{p.label}</span>
-                      {isSelected && <span>✓</span>}
+                      {isSelected && <CheckIcon className="w-3.5 h-3.5 text-[#007A4D]" />}
                     </button>
                   );
                 })}
@@ -429,10 +438,10 @@ export function QuixoticHeaderRow({
         <div className="relative" ref={statusDropdownRef}>
           <button
             onClick={() => setStatusDropdownOpen(prev => !prev)}
-            className="flex items-center gap-1.5 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full px-3.5 py-2 text-xs font-medium text-gray-700 shadow-xs transition-all cursor-pointer"
+            className="flex items-center gap-2 bg-white hover:bg-gray-50 border border-gray-200/80 rounded-full px-3.5 py-2 text-xs font-medium text-gray-700 shadow-xs transition-all cursor-pointer"
             title="Filter by Transaction Status"
           >
-            <span>🏷️</span>
+            <TagIcon className="w-3.5 h-3.5 text-gray-500" />
             <span className="font-mono text-[11px] sm:text-xs">
               {currentStatusLabel}
             </span>
@@ -464,7 +473,7 @@ export function QuixoticHeaderRow({
                       }`}
                     >
                       <span>{opt.label}</span>
-                      {isSelected && <span>✓</span>}
+                      {isSelected && <CheckIcon className="w-3.5 h-3.5 text-[#007A4D]" />}
                     </button>
                   );
                 })}
@@ -477,26 +486,27 @@ export function QuixoticHeaderRow({
         <button
           onClick={onRunAgent}
           disabled={isRunning}
-          className="flex items-center gap-2 bg-[#007A4D] hover:bg-[#00603C] text-white rounded-full px-4 py-2 text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50"
+          className="flex items-center gap-2 bg-[#007A4D] hover:bg-[#00603C] text-white rounded-full px-4 py-2 text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer disabled:opacity-50 group"
+          title={aiStatus === 'COMPLETED' ? "Re-run reconciliation analysis on current dataset" : "Execute AI reconciliation pipeline"}
         >
           {isRunning ? (
             <>
               <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              <span>Running Reconciliation…</span>
+              <span>Reconciling Ledger…</span>
             </>
           ) : aiStatus === 'COMPLETED' ? (
             <>
-              <span className="text-white font-bold">⚡</span>
-              <span>Run Again</span>
+              <RefreshCwIcon className="w-3.5 h-3.5 text-white group-hover:rotate-180 transition-transform duration-500" />
+              <span>Reconcile Ledger</span>
             </>
           ) : aiStatus === 'FAILED' ? (
             <>
-              <span className="text-white font-bold">⚠️</span>
+              <AlertTriangleIcon className="w-3.5 h-3.5 text-white" />
               <span>Retry Reconciliation</span>
             </>
           ) : (
             <>
-              <span className="text-white font-bold">⚡</span>
+              <LightningBoltIcon className="w-3.5 h-3.5 text-white" />
               <span>Run AI Reconciliation</span>
             </>
           )}

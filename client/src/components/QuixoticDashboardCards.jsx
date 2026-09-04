@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowUpRightIcon, VendorBadge } from './Icons';
+import { ArrowUpRightIcon, VendorBadge, BarChartIcon, LightningBoltIcon, CheckIcon, AlertTriangleIcon, CreditCardIcon } from './Icons';
 
 // ── SKELETON LOADER ────────────────────────────────────────────────────
 function CardSkeleton({ height = 'h-64' }) {
@@ -134,8 +134,9 @@ export function QuixoticCardWidget({
               Ledger Position
             </h3>
             {justUpdated && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 animate-bounce">
-                ⚡ Realtime Synced
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 animate-bounce inline-flex items-center gap-1">
+                <LightningBoltIcon className="w-3 h-3 text-[#007A4D]" />
+                <span>Realtime Synced</span>
               </span>
             )}
           </div>
@@ -365,8 +366,8 @@ export function QuixoticBarChartCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 text-xs font-bold">
-            📊
+          <div className="w-7 h-7 rounded-lg bg-emerald-50 text-[#007A4D] flex items-center justify-center">
+            <BarChartIcon className="w-4 h-4 text-[#007A4D]" />
           </div>
           <h3 className="text-sm font-semibold text-gray-900 tracking-tight group-hover:text-[#007A4D] transition-colors">
             Reconciliation Rate
@@ -433,7 +434,7 @@ export function QuixoticBarChartCard({
                 }}
                 className="px-4 py-2 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer inline-flex items-center gap-1.5"
               >
-                <span>⚡</span>
+                <LightningBoltIcon className="w-3.5 h-3.5" />
                 <span>Run AI Reconciliation</span>
               </button>
             </div>
@@ -546,8 +547,14 @@ export function QuixoticBarChartCard({
               </div>
 
               <div className="flex items-center justify-between text-[11px] font-mono text-gray-500 mt-2">
-                <span>✓ {matchedCount} Matched</span>
-                <span className="text-red-600">⚠ {exceptionsCount} Exceptions</span>
+                <span className="inline-flex items-center gap-1">
+                  <CheckIcon className="w-3 h-3 text-emerald-600" />
+                  <span>{matchedCount} Matched</span>
+                </span>
+                <span className="text-red-600 inline-flex items-center gap-1">
+                  <AlertTriangleIcon className="w-3 h-3 text-red-600" />
+                  <span>{exceptionsCount} Exceptions</span>
+                </span>
               </div>
             </div>
           )}
@@ -558,8 +565,14 @@ export function QuixoticBarChartCard({
       <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-[11px] font-mono">
         {isAnalyzed ? (
           <>
-            <span className="text-[#007A4D] font-bold">✓ {matchedCount} Matched</span>
-            <span className="text-red-600 font-bold">⚠ {exceptionsCount} Exceptions</span>
+            <span className="text-[#007A4D] font-bold inline-flex items-center gap-1">
+              <CheckIcon className="w-3 h-3 text-[#007A4D]" />
+              <span>{matchedCount} Matched</span>
+            </span>
+            <span className="text-red-600 font-bold inline-flex items-center gap-1">
+              <AlertTriangleIcon className="w-3 h-3 text-red-600" />
+              <span>{exceptionsCount} Exceptions</span>
+            </span>
             <span className="text-gray-400">{duration}s run</span>
           </>
         ) : (
@@ -763,8 +776,8 @@ function ReconciliationStatusBadge({ transaction }) {
   if (actionStatus === 'approved') {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-        ✓ Reconciled
+        <CheckIcon className="w-3 h-3 text-emerald-600" />
+        Reconciled
       </span>
     );
   }
@@ -783,14 +796,14 @@ function ReconciliationStatusBadge({ transaction }) {
       return (
         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
           <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-          🔒 Authorization Required
+          Authorization Required
         </span>
       );
     }
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
-        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-        ⚠ Exception
+        <AlertTriangleIcon className="w-3 h-3 text-red-600" />
+        Exception
       </span>
     );
   }
@@ -799,15 +812,15 @@ function ReconciliationStatusBadge({ transaction }) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
         <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-        ⏳ Pending
+        Pending
       </span>
     );
   }
 
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-[#007A4D] border border-emerald-200">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#007A4D]" />
-      ✓ Reconciled
+      <CheckIcon className="w-3 h-3 text-[#007A4D]" />
+      Reconciled
     </span>
   );
 }
@@ -1016,7 +1029,7 @@ export function QuixoticCreditAndExceptionsCard({
       <div className="border-b border-gray-100 pb-5">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-600 text-xs">
-            💳
+            <CreditCardIcon className="w-4 h-4 text-gray-600" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-gray-900 tracking-tight group-hover:text-[#007A4D] transition-colors">

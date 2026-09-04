@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { VendorBadge } from './Icons';
+import { VendorBadge, CheckIcon, AlertTriangleIcon } from './Icons';
 
 export default function TransactionTable({
   transactions = [],
@@ -186,7 +186,7 @@ export default function TransactionTable({
                         <td colSpan={5} className="p-4 rounded-xl border border-gray-200">
                           <div className="flex flex-col gap-2.5 pl-3 border-l-2 border-[#007A4D]">
                             <div className="text-xs font-bold text-red-600 flex items-center gap-1.5">
-                              <span>⚠</span>
+                              <AlertTriangleIcon className="w-3.5 h-3.5 text-red-600 shrink-0" />
                               <span>{tx.exception_reason || tx.anomaly_explanation || 'Flagged for reconciliation review'}</span>
                             </div>
 
@@ -206,9 +206,10 @@ export default function TransactionTable({
                                 <>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onApprove(tx.id); }}
-                                    className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all shadow-xs cursor-pointer"
+                                    className="px-4 py-1.5 rounded-full text-xs font-semibold bg-[#007A4D] hover:bg-[#006644] text-white transition-all shadow-xs cursor-pointer inline-flex items-center gap-1.5"
                                   >
-                                    ✓ Approve Action
+                                    <CheckIcon className="w-3 h-3" />
+                                    <span>Approve Action</span>
                                   </button>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onDismiss(tx.id); }}

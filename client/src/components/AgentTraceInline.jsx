@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LightningBoltIcon, AlertTriangleIcon, CheckIcon, SettingsGearIcon, SparklesIcon } from './Icons';
 
 export default function AgentTraceInline({
   currentStage,
@@ -22,8 +23,9 @@ export default function AgentTraceInline({
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full bg-gray-300" />
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-500 font-sans">
-                ✦ AI Reconciliation
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-500 font-sans inline-flex items-center gap-1.5">
+                <SparklesIcon className="w-3.5 h-3.5 text-gray-400" />
+                <span>AI Reconciliation</span>
               </span>
               <p className="text-xs text-gray-600 font-mono mt-0.5">
                 AI Reconciliation has not been run for this period.
@@ -36,7 +38,7 @@ export default function AgentTraceInline({
               disabled={isRunning}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#007A4D] hover:bg-[#00603C] text-white text-xs font-semibold shadow-xs hover:shadow transition-all cursor-pointer"
             >
-              <span>⚡</span>
+              <LightningBoltIcon className="w-3.5 h-3.5" />
               <span>Run AI Reconciliation</span>
             </button>
           )}
@@ -53,8 +55,9 @@ export default function AgentTraceInline({
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-red-800 font-sans">
-                ✦ AI Reconciliation Failed
+              <span className="text-xs font-bold uppercase tracking-wider text-red-800 font-sans inline-flex items-center gap-1.5">
+                <AlertTriangleIcon className="w-3.5 h-3.5 text-red-600" />
+                <span>AI Reconciliation Failed</span>
               </span>
               <p className="text-xs text-red-600 font-mono mt-0.5">
                 Reconciliation failed during execution. Please retry.
@@ -66,7 +69,7 @@ export default function AgentTraceInline({
               onClick={onRunAgent}
               className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
             >
-              <span>⚠️</span>
+              <AlertTriangleIcon className="w-3.5 h-3.5" />
               <span>Retry Reconciliation</span>
             </button>
           )}
@@ -141,8 +144,9 @@ export default function AgentTraceInline({
 
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-900 font-sans">
-                ✦ AI Reconciliation
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-900 font-sans inline-flex items-center gap-1.5">
+                <SparklesIcon className="w-3.5 h-3.5 text-[#007A4D]" />
+                <span>AI Reconciliation</span>
               </span>
               {isRunning && (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-[#007A4D] font-semibold animate-pulse">
@@ -151,7 +155,7 @@ export default function AgentTraceInline({
               )}
               {!isRunning && (agentResult?.callsUsed !== undefined || latestRun?.calls_used !== undefined) && (
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-[#007A4D] font-semibold flex items-center gap-1" title="Groq AI API calls executed during reconciliation">
-                  <span>⚡</span>
+                  <LightningBoltIcon className="w-3 h-3 text-[#007A4D]" />
                   <span>{agentResult?.callsUsed ?? latestRun?.calls_used} Groq API {Number(agentResult?.callsUsed ?? latestRun?.calls_used) === 1 ? 'call' : 'calls'}</span>
                 </span>
               )}
@@ -173,10 +177,10 @@ export default function AgentTraceInline({
                 e.stopPropagation();
                 onViewAnomalies();
               }}
-              className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+              className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
               title="Filter exceptions to spend anomalies"
             >
-              <span>⚠️</span>
+              <AlertTriangleIcon className="w-3.5 h-3.5 text-amber-700" />
               <span>{anomalyCount} Anomalies</span>
             </button>
           )}
@@ -187,10 +191,10 @@ export default function AgentTraceInline({
                 e.stopPropagation();
                 onViewActions();
               }}
-              className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200/80 transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+              className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-[#007A4D] border border-emerald-200/80 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
               title="Review AI action recommendations"
             >
-              <span>⚡</span>
+              <LightningBoltIcon className="w-3.5 h-3.5 text-[#007A4D]" />
               <span>{exceptionCount} Action Drafts</span>
             </button>
           )}
@@ -237,7 +241,7 @@ export default function AgentTraceInline({
                 className="flex items-center justify-between py-0.5 text-emerald-800"
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="text-emerald-600 font-bold">✓</span>
+                  <CheckIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   <span>{isDone ? step.doneLabel : step.label}</span>
                 </div>
 
@@ -259,7 +263,8 @@ export default function AgentTraceInline({
               onClick={() => setShowTechDetails(prev => !prev)}
               className="flex items-center gap-1.5 text-gray-500 hover:text-gray-800 cursor-pointer transition-colors"
             >
-              <span>⚙ Technical Pipeline Details</span>
+              <SettingsGearIcon className="w-3.5 h-3.5 text-gray-500" />
+              <span>Technical Pipeline Details</span>
               <span className="text-[10px]">{showTechDetails ? '▲' : '▼'}</span>
             </button>
 

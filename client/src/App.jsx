@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Layout from './components/Layout';
+import { SparklesIcon, AlertTriangleIcon, CalendarIcon } from './components/Icons';
 import { QuixoticTopNav, QuixoticHeaderRow } from './components/QuixoticNavigation';
 import {
   QuixoticCardWidget,
@@ -373,8 +374,8 @@ export default function App() {
       ) : hasData && aiStatus === 'NOT_RUN' ? (
         /* ── 2. Pending AI Reconciliation (data exists, AI not yet run) ── */
         <div className="flex flex-col items-center justify-center py-20 px-6 animate-fade-in">
-          <div className="w-16 h-16 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-3xl mb-5">
-            🤖
+          <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 mb-5">
+            <SparklesIcon className="w-8 h-8 text-emerald-600" />
           </div>
           <h3 className="text-lg font-bold text-gray-900 mb-2">
             AI Reconciliation Required
@@ -397,7 +398,7 @@ export default function App() {
           {dashboardError && (
             <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span>⚠️</span>
+                <AlertTriangleIcon className="w-4 h-4 text-red-600 shrink-0" />
                 <span>Failed to load live dashboard data: {dashboardError}</span>
               </div>
               <button
@@ -431,8 +432,8 @@ export default function App() {
           {/* ── Empty State for Selected Filter Range with 0 Transactions ── */}
           {dashboardData && dashboardData.recentTransactions?.length === 0 && (
             <div className="p-6 rounded-2xl bg-amber-50/80 border border-amber-200 text-center flex flex-col items-center justify-center">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-lg mb-2">
-                📅
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 mb-2">
+                <CalendarIcon className="w-5 h-5 text-amber-700" />
               </div>
               <h4 className="text-sm font-bold text-amber-900 mb-1">
                 No transactions found for the selected filters
@@ -723,6 +724,31 @@ export default function App() {
         }}
         onExplainWithCopilot={handleExplainWithCopilot}
       />
+
+      {/* ── Persistent Floating Copilot Trigger ── */}
+      {!chatOpen && (
+        <button
+          onClick={() => {
+            setCopilotContextPrompt(null);
+            setChatOpen(true);
+          }}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-emerald-950 hover:bg-black text-white text-xs font-semibold shadow-xl hover:shadow-2xl transition-all cursor-pointer border border-emerald-500/40 group hover:scale-105 active:scale-95 animate-fade-in"
+          title="Open Ledger AI Copilot (Natural Language Assistant)"
+        >
+          <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
+            <SparklesIcon className="w-3.5 h-3.5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+          </div>
+          <span className="font-semibold tracking-tight">Ask Copilot</span>
+          {unresolvedExceptionCount > 0 && (
+            <span
+              className="px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-[10px] font-bold text-amber-300"
+              title={`${unresolvedExceptionCount} unresolved exceptions`}
+            >
+              {unresolvedExceptionCount}
+            </span>
+          )}
+        </button>
+      )}
     </Layout>
   );
 }

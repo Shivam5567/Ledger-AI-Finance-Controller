@@ -172,12 +172,12 @@ export function useChat() {
                   m.id === aiMsgId ? { ...m, content: m.content + data.text } : m
                 ));
               } else if (data.type === 'tool_call_start') {
-                setToolState('🔍 Querying live data...');
+                setToolState('Querying live database...');
               } else if (data.type === 'tool_call_result') {
                 setToolState(null);
               } else if (data.type === 'error') {
                 setMessages(prev => prev.map(m =>
-                  m.id === aiMsgId ? { ...m, content: m.content || `⚠️ ${data.message}` } : m
+                  m.id === aiMsgId ? { ...m, content: m.content || data.message } : m
                 ));
               }
             } catch (e) { /* parse error */ }
@@ -195,7 +195,7 @@ export function useChat() {
     } catch (err) {
       setMessages(prev => prev.map(m =>
         m.id === aiMsgId && !m.content
-          ? { ...m, content: `⚠️ Something went wrong. (${err.message})` }
+          ? { ...m, content: `Unable to complete request. (${err.message})` }
           : m
       ));
     } finally {
@@ -204,7 +204,9 @@ export function useChat() {
     }
   };
 
-  return { messages, sendMessage, isTyping, toolState };
+  const clearMessages = () => setMessages([]);
+
+  return { messages, sendMessage, isTyping, toolState, clearMessages };
 }
 
 export function useAction() {

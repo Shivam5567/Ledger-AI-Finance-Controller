@@ -61,7 +61,13 @@ export default function EmptyState({ onIngest, onUpload, isIngesting, isUploadin
             isDragOver ? 'border-[#007A4D] bg-emerald-50/40' : 'border-gray-200'
           }`}
         >
-          <div className="text-3xl mb-3">📂</div>
+          <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200/80 flex items-center justify-center text-[#007A4D] mb-3">
+            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+          </div>
           <p className="text-xs text-gray-500 mb-4">Drag & drop a CSV file here</p>
 
           <input
