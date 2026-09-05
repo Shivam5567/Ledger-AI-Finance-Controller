@@ -1,6 +1,7 @@
 # Ledger AI - Autonomous Finance Controller Agent
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-ledger--ai--finance--controller.onrender.com-success?style=for-the-badge&logo=render)](https://ledger-ai-finance-controller.onrender.com/)
+[![Video Walkthrough](https://img.shields.io/badge/Video_Walkthrough-YouTube-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=UI5JUVg8S64)
 [![Razorpay AI Buildathon](https://img.shields.io/badge/Razorpay_AI_Buildathon_2026-Track_04:_AI_Finance_Controller-blue?style=for-the-badge)](https://razorpay.com/buildathon/)
 [![Groq Cloud](https://img.shields.io/badge/LLM_Inference-Groq_Cloud_Llama_3-orange?style=for-the-badge)](https://groq.com/)
 
@@ -11,6 +12,7 @@
 Ledger AI is an intelligent financial operations platform that closes the reconciliation loop across complex, multi-source transaction streams. By pairing deterministic financial matching rules with Groq-powered reasoning models, Ledger AI automates transaction categorization, flags ledger discrepancies, drafts audit actions, and provides a conversational Copilot for human-in-the-loop sign-off.
 
 - Live Application: https://ledger-ai-finance-controller.onrender.com/
+- Video Demonstration: https://www.youtube.com/watch?v=UI5JUVg8S64
 - Public Code Repository: https://github.com/Shivam5567/Ledger-AI-Finance-Controller
 
 ---
@@ -38,6 +40,9 @@ Here is how Ledger AI directly fulfills each benchmark:
    A streaming conversational agent grounded in the live database state. Controllers can interrogate cash float, identify duplicate charges, or query specific vendor balances in natural language.
 
 ---
+
+> [!TIP]
+> **Video Demonstration**: Watch the full end-to-end working demo on YouTube: [Ledger AI Finance Controller Working Demo](https://www.youtube.com/watch?v=UI5JUVg8S64).
 
 ## Visual Walkthrough
 
